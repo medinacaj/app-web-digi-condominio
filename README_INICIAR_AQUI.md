@@ -40,3 +40,7 @@ No incorporar datos reales de residentes, comprobantes o credenciales al reposit
 ## Primer prototipo (PR #9)
 
 Interfaz web local propuesta en `feat/prototipo-web-2026-10-25`. Documentación en `docs/PROTOTIPO_WEB.md`. Para verificar: `npm run check`; para abrir desde un servidor HTTP: `npm run serve`. No usar datos reales: no existe autenticación ni backend. Resultado comprobado localmente: 7/7 tests y rutas básicas HTTP 200; validación visual/CI pendiente.
+
+## Rama del MVP local
+
+Tras PR #1 y #9, evaluar [PR #10](https://github.com/medinacaj/app-web-digi-condominio/pull/10), que agrega persistencia y control de acceso. Ejecutar `npm run check` y leer `docs/MVP_LOCAL.md` antes de probar localmente. Configurar las credenciales iniciales con variables de entorno no versionadas. **No** cargar datos de residentes reales ni publicar el servidor.
