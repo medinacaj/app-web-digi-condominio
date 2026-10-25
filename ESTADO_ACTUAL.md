@@ -76,3 +76,14 @@ La ejecución `40224344777` del workflow **Comprobaciones del prototipo**, asoci
 - **Pruebas ejecutadas localmente:** `npm run check` 17/17 correctas, incluye HTTP real, permisos negativos entre tenants y SQLite reabierto. En Chromium offline con mock API: login, unidades, cuotas, pagos, XSS escapado y sin overflow a 360/390/1440; sin errores JS.
 - **Limitación de QA:** Chromium bloqueó navegación HTTP local por política del entorno; no se declara E2E navegador+backend. GitHub Actions remoto requiere comprobación de conclusión final tras cada commit.
 - **Siguiente acción concreta:** revisar PR #10, validar reglas del negocio y país; pruebas E2E reales, migraciones/backup, onboarding de usuarios y funciones financieras/documentales pendientes antes de operar con datos reales.
+
+## 2026-10-25 — Iteraciones adicionales (PR #10 · v0.3.0)
+
+- Implementados en la rama: proveedores y gastos por comunidad, exportaciones CSV con mitigación de fórmulas de hoja de cálculo, respaldos SQLite con `integrity_check`, importación CSV de unidades con vista previa y transacción, y alta local de usuarios con asignación de rol/unidad.
+- Endpoints y UI limitan proveedores/gastos a administradores; exportes requieren rol administrador, no quedan publicados.
+- Mejoras de validación: importes, duplicados, referencias, alta de usuarios transaccional, rechazo de escritura a ruta de consulta y bloqueo de doble envío de formularios.
+- **Pruebas locales verificadas:** 23/23 correctas, cero fallos. Incluye respaldos, restauración, CSV, seguridad de exportaciones, flujo de API, aislamiento multi-tenant y persistencia SQLite.
+- **Verificaciones remotas parciales:** CI de los commits `60d2342...`, `5e4dcea...`, `f1bbcef...` y `8f1ea72...` concluyó en éxito; el último SHA requiere nueva comprobación remota tras la documentación.
+- No ejecutado: E2E completo navegador/API real por bloqueo de HTTP en Chromium del entorno, pruebas de cargas elevadas y pentest profesional.
+- **Fuera de alcance y sin aprobación:** pagos integrados con bancos, contabilidad legal completa, adjuntos/documentos reales, emails de invitación, MFA, gestión de usuarios web, despliegue y localización legal específica.
+- **Siguiente acción concreta:** confirmar último CI, revisar los PR #1/#9/#10, consolidar solo si no hay cambios de visibilidad ni despliegues involuntarios, decidir jurisdicción, probar backup/restauración operativa y preparar seguridad prod antes de datos reales.
