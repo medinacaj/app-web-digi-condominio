@@ -60,3 +60,7 @@ Después de cada cambio: fecha/hora, issue, PR/commit, alcance, archivos, estado
 - En esa inspección: panel con cuatro KPI; navegación, búsqueda de unidades, creación temporal de comunicado y menú móvil respondieron correctamente, sin errores JS.
 - Se detectó y corrigió desbordamiento horizontal de CSS en pantallas pequeñas. Anchos de documento confirmados iguales al viewport a **360, 390, 768 y 1440 px** en el entorno offline.
 - Limitación: esto **no** valida el despliegue real, carga de módulos ES desde HTTP, integración externa ni accesibilidad integral. El servidor estático respondió 200 para rutas básicas en comprobación aparte.
+
+## CI remoto GitHub Actions (2026-10-25)
+
+La ejecución `40224344777` del workflow **Comprobaciones del prototipo**, asociada al PR #9, terminó con estado `completed` y conclusión **success**. Esto valida los pasos automatizados configurados de sintaxis y pruebas unitarias, no despliegue ni seguridad productiva.
