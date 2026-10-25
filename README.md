@@ -47,3 +47,7 @@ La versión 0.4.0 se incorporó a `main` por PR [#10](https://github.com/medinac
 El [PR #17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) añade **Incidencias**, integrado en la app web y backend local: reportes, prioridad, comentarios, estados y permisos de comunidad. Pruebas Node en rama: **32/32**. La primera ejecución CI de navegador falló por incompatibilidad Playwright/Ubuntu 26.04; runner corregido a Ubuntu 24.04, en espera de nueva ejecución. No considerarlo integrado hasta fusionar y verificar CI.
 
 Manual: [docs/INCIDENCIAS.md](docs/INCIDENCIAS.md). No aporta fotos, notificaciones externas ni servicio de producción.
+
+## Vinculación de propietarios en app web · v0.6.0 en revisión
+
+[PR #19](https://github.com/medinacaj/app-web-digi-condominio/pull/19): desde **Unidades → Cambiar**, administración puede asignar o desvincular propietarios ya provisionados por CLI, con historial y control por comunidad. El panel se reinicia al cambiar de sesión. La implementación v0.6.0 superó **35/35 pruebas Node locales** y un E2E local de interfaz/API mediante puente. [Manual](docs/ASIGNACIONES.md). No es validación legal de la propiedad ni habilita registro público de usuarios. Verificar PR y CI final antes de considerar la función integrada.

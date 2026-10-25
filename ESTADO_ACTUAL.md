@@ -64,3 +64,11 @@
 - Primer CI de navegador del PR: fallo de infraestructura con Ubuntu 26.04 no soportado por Playwright 1.56.0, job de sintaxis/Node pasó. Se fijó runner `ubuntu-24.04` en commit posterior, pendiente de éxito remoto; no declarar verde hasta confirmarlo.
 - PR: https://github.com/medinacaj/app-web-digi-condominio/pull/17. Issue: https://github.com/medinacaj/app-web-digi-condominio/issues/16.
 - **Pendientes**: fotografías/adjuntos, avisos por correo, SLA, asignación de responsable, paginación, retención legal; E2E directo y release aún no acreditados.
+
+## 2026-10-25 — Iteración v0.6.0, PR #19 (por integrar)
+
+- PR [#17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) de incidencias y E2E se fusionó en `main` (SHA `d75e8e5800044b5c84580dcce26bba11ba4848a0`). Pre-merge: tanto el job verify como browser-e2e de GitHub Actions terminaron success en run `40229952095`.
+- PR [#19](https://github.com/medinacaj/app-web-digi-condominio/pull/19) añade en rama asignación, reemplazo y revocación de propietario por unidad desde la web, listado de miembros administrado y eventos `unit_owner_events` auditados junto al cambio en una transacción.
+- Al cambiar de sesión se limpia navegación, comunidad, filtros, formularios y usuarios visualizados; corrección detectada por E2E.
+- Pruebas **locales** de v0.6.0: `npm run check` 35/35; Chromium web/API por puente en este entorno, con login admin/owner, unidad, asignación, incidencias y controles de privacidad. Run inicial CI del PR #19: `40230608106` completó con success; verificar ambas comprobaciones y nuevos commits antes de merge.
+- Queda pendiente integrar PR #19, comprobar CI post-merge y decidir jurisdicción, recuperación de cuenta, backend de producción, cifrado operacional, adjuntos y notificaciones.

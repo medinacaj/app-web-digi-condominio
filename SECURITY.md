@@ -33,3 +33,7 @@ Las escrituras de unidades, cuotas, pagos, anulaciones, avisos, proveedores, gas
 ## Incidencias v0.5.0, PR #17
 
 Los reportes se autorizan por comunidad y unidad **en servidor**, con contenido mostrado mediante escape HTML. Admin cambia estado con nota obligatoria; propietario no obtiene incidencias ajenas. El historial, comentario y auditoría se escriben atómicamente; se limitan las respuestas de listados a 100 elementos y 100 eventos por reporte. No se admiten archivos binarios ni fotografías. La retención, permisos legales y control de abuso requieren revisión antes de usar con datos reales.
+
+## Seguridad v0.6.0 — Gestión de propietarios
+
+Los datos de miembros y emails se exponen solo a admins autenticados de cada comunidad. Asignar/revocar dueño de unidad requiere rol admin y pertenencia del nuevo dueño con rol owner en la misma comunidad. Cada cambio guarda evento histórico y auditoría de forma atómica; no elimina asientos de cuota/pago. Cerrar sesión elimina estado de interfaz y token en memoria. **Pendiente:** validación legal de títulos, comprobación de identidad, revocación de membresías, invitaciones, MFA, permisos de datos históricos y retención. No usar con datos reales.

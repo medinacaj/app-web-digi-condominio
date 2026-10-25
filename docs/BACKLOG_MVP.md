@@ -61,3 +61,7 @@ Objetivo, contexto, criterios de aceptación comprobables, seguridad/privacidad 
 ## Incidencias residenciales (iteración en PR #17)
 
 En desarrollo: alta de reportes por unidad/área común, categorías, prioridad, estados, comentarios y permisos por rol; 32 pruebas Node locales y prueba visual/API a través de puente; CI directo pendiente. **No** incluye fotografías, avisos externos, SLA, asignaciones ni mantenimiento preventivo. Estas extensiones se priorizarán después de la decisión de jurisdicción, privacidad y arquitectura de producción.
+
+## Administración web de propietarios (PR #19)
+
+Implementado en rama: asignar y quitar propietarios preexistentes a las unidades, con historial auditable y aislamiento. No implementado: registrar usuarios desde la web, enlace de invitación, validación documental de títulos, recuperación de cuentas y revocación de membresías; son tareas de producto y seguridad aún pendientes. Aceptar el ítem tras CI directo E2E y merge, no antes.

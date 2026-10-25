@@ -28,3 +28,7 @@ Con Node 22.16+, `npm run check` ejecuta sintaxis y pruebas; última comprobaci�
 ## Rama de incidencias v0.5.0
 
 Inspeccionar [PR #17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) contra `main` y [issue #16](https://github.com/medinacaj/app-web-digi-condominio/issues/16). Leer `docs/INCIDENCIAS.md`; pruebas `npm run check` (32 casos locales) y `python3 tests/browser-e2e.py`. La prueba local de navegador usa un puente por política de acceso a localhost; el modo directo en GitHub CI se activa con `DIGI_E2E_MODE=direct`. Solo declarar éxito tras revisar el job remoto y el merge.
+
+## PR #19 · v0.6.0
+
+Continuar revisando [PR #19](https://github.com/medinacaj/app-web-digi-condominio/pull/19) y [issue #18](https://github.com/medinacaj/app-web-digi-condominio/issues/18), validar que el E2E directo de GitHub CI esté verde, y consultar `docs/ASIGNACIONES.md`. Esta función vincula usuarios existentes de CLI con unidades mediante un control administrativo de la web; **no** permite alta pública, verificación jurídica de identidad ni despliegue.

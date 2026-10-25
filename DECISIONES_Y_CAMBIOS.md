@@ -85,3 +85,10 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - Se añadieron 3 pruebas Node (32 total) y prueba de navegador con datos sintéticos. El recorrido local usa puente hacia la API real por bloqueo de HTTP desde Chromium; GitHub CI probará HTTP directo.
 - Se corrigió fallo del job E2E inicial provocado por runner Ubuntu 26.04 no soportado: se fijó Ubuntu 24.04 en PR #17. No confundir fallo de entorno con aprobación del test remoto.
 - La versión 0.5.0 es propuesta hasta integración del PR. No cambia privacidad ni ejecuta despliegues.
+
+## 2026-10-25 — Asignación web de propietarios, v0.6.0 candidata
+
+- Se implementó `GET /members` exclusivamente administrativo y `PATCH /units/:id/owner`, validando pertenencia a la misma comunidad y rol `owner`.
+- Se almacena historia de cambios anterior/nuevo/actor/unidad con atomicidad de auditoría. Cambiar la asignación modifica acceso del propietario desde la siguiente consulta, sin modificar cargos y pagos históricos.
+- La nueva sesión ya no conserva sección, comunidad o filtros de la cuenta anterior; se detectó en el E2E de cambio de usuario.
+- 35 pruebas Node locales y E2E web con backend real por puente; CI previo del PR #19 pasó. No validar identidad/propiedad documental ni utilizar datos de residentes reales.
