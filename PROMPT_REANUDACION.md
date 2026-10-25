@@ -17,3 +17,6 @@ Actualización 2026-10-25: revisar en orden PR #1 (documentación), PR #9 (inter
 
 
 Actualización v0.3.0: revisar pruebas (23/23 local), backup, importación y roles; GitHub Actions en el SHA vigente y estado de los PR encadenados. La documentación en ramas no confirma que esté en `main`. Mantener entorno local, no producción.
+
+
+Actualización v0.4.0: último PR #10 agrega reversos trazables, importación CSV, gastos, backups y provisión local de usuarios. Validación local 24/24 y CI del código v0.4.0 verde. Confirmar que la última rama y los PR #1/#9/#10 se integraron antes de describir el estado de main. No usar datos reales ni publicar servicios sin validaciones.
