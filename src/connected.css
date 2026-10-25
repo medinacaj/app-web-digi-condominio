@@ -2,3 +2,8 @@
 @media(max-width:1160px){.live-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.live-columns{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:750px){.login-shell{grid-template-columns:minmax(0,1fr)}.login-panel{padding:44px 20px}.login-art{display:none}.live-kpis{gap:10px}.live-kpis article{padding:17px}.live-community-select{max-width:100%;width:100%}.live-app .intro-actions{flex-direction:column;align-items:stretch;min-width:0}.live-app .intro-actions button{justify-content:center}}
 @media(max-width:390px){.live-kpis{grid-template-columns:1fr}.live-app .content{padding:18px 12px}}
+
+.live-kpis:has(article:nth-child(5)){grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1300px){.live-kpis:has(article:nth-child(5)){grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:750px){.live-kpis:has(article:nth-child(5)){grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.live-kpis:has(article:nth-child(5)){grid-template-columns:1fr}}

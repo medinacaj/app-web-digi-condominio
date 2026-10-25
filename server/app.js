@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Problem } from './store.js';
+import { report } from './report.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const assets = new Map([
@@ -54,13 +55,19 @@ export function createApp(store){
         if(pathname==='/api/session' && req.method==='GET')return send(res,200,{user});
         if(pathname==='/api/logout' && req.method==='POST'){store.logout(token);return send(res,200,{ok:true});}
         if(pathname==='/api/communities' && req.method==='GET')return send(res,200,{communities:store.communitiesFor(user.id)});
-        const match=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/(overview|units|charges|payments|announcements|documents)$/.exec(pathname);
+        const exportMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/reports\/(units|charges|payments|providers|expenses)\.csv$/.exec(pathname);
+        if(exportMatch && req.method==='GET'){
+          const output=report(store,user.id,exportMatch[1],exportMatch[2]);
+          res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':`attachment; filename="digi-${exportMatch[2]}.csv"`,'Cache-Control':'no-store'});
+          return res.end(output);
+        }
+        const match=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/(overview|units|charges|payments|announcements|documents|providers|expenses)$/.exec(pathname);
         if(!match)throw new Problem(404,'Ruta no disponible');
         const [, communityId,resource]=match;
         if(req.method==='GET' && resource==='overview')return send(res,200,store.overview(user.id,communityId));
         if(req.method!=='POST')throw new Problem(405,'Método no permitido');
         const input=await body(req);
-        const act={units:'addUnit',charges:'addCharge',payments:'addPayment',announcements:'addAnnouncement',documents:'addDocument'}[resource];
+        const act={units:'addUnit',charges:'addCharge',payments:'addPayment',announcements:'addAnnouncement',documents:'addDocument',providers:'addProvider',expenses:'addExpense'}[resource];
         return send(res,201,store[act](user.id,communityId,input));
       }
       if(req.method==='GET' && assets.has(pathname)){

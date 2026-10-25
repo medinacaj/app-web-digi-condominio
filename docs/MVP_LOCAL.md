@@ -55,3 +55,18 @@ Pruebas de lógica de demo, backend, aislamiento entre tenants, sesiones, roles,
 ## Privacidad y estado de GitHub
 
 Conservar repo privado. Ningún archivo de `.data/`, credencial o comprobante de residentes debe versionarse. La implementación vive en rama de trabajo y su PR no equivale a despliegue. No se ha seleccionado país ni marca comercial definitivos.
+
+## Gastos, proveedores e informes CSV (iteración posterior)
+
+Los administradores pueden crear proveedores, registrar gastos operativos y descargar informes CSV de unidades, cuotas, pagos, gastos y proveedores. Los informes usan UTF-8 con BOM y neutralizan cadenas que empiezan por operadores de hoja de cálculo para limitar la ejecución de fórmulas al importarlos. Las exportaciones requieren token y rol admin. Todo gasto se registra sin modificaciones destructivas; aún no constituye contabilidad regulada.
+
+## Respaldo y verificación
+
+Configura una ruta de destino **nueva** fuera del repositorio y ejecuta:
+
+```bash
+export DIGI_BACKUP_PATH='/ruta-privada/respaldo-2026-10-25.sqlite'
+npm run backup
+```
+
+El comando usa el backup online de SQLite y verifica `PRAGMA integrity_check` sobre la copia. No sobrescribe destinos existentes. **No cifra el respaldo**: la responsabilidad de cifrarlo y guardarlo en un lugar seguro sigue siendo del operador. La restauración se realiza con la aplicación detenida, copiando cuidadosamente el respaldo y verificándolo antes de volver a iniciar. Prueba automatizada de recuperación incluida; no es un plan de desastre homologado.

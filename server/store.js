@@ -82,6 +82,17 @@ export class Store {
         title TEXT NOT NULL, category TEXT NOT NULL, scope TEXT NOT NULL CHECK(scope IN ('community','committee','admin')),
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS providers (
+        id TEXT PRIMARY KEY, community_id TEXT NOT NULL REFERENCES communities(id),
+        name TEXT NOT NULL, category TEXT NOT NULL, created_at TEXT NOT NULL,
+        UNIQUE(id,community_id), UNIQUE(community_id,name)
+      );
+      CREATE TABLE IF NOT EXISTS expenses (
+        id TEXT PRIMARY KEY, community_id TEXT NOT NULL REFERENCES communities(id),
+        provider_id TEXT NOT NULL, period TEXT NOT NULL, concept TEXT NOT NULL,
+        amount_minor INTEGER NOT NULL CHECK(amount_minor>0), created_at TEXT NOT NULL,
+        FOREIGN KEY(provider_id,community_id) REFERENCES providers(id,community_id)
+      );
       CREATE TABLE IF NOT EXISTS sessions (
         token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at TEXT NOT NULL
       );
@@ -94,6 +105,8 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_charges_community ON charges(community_id,unit_id);
       CREATE INDEX IF NOT EXISTS ix_payments_community ON payments(community_id,unit_id);
       CREATE INDEX IF NOT EXISTS ix_announcements_community ON announcements(community_id);
+      CREATE INDEX IF NOT EXISTS ix_expenses_community ON expenses(community_id);
+      CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
   }
   close() { this.db.close(); }
@@ -165,8 +178,11 @@ export class Store {
     const announcements = rows(this.db.prepare('SELECT id,title,body,created_at createdAt FROM announcements WHERE community_id=? ORDER BY created_at DESC'), communityId);
     const scope = role === 'admin' ? ['community','committee','admin'] : role === 'committee' ? ['community','committee'] : ['community'];
     const documents = rows(this.db.prepare(`SELECT id,title,category,scope,created_at createdAt FROM documents WHERE community_id=? AND scope IN (${scope.map(() => '?').join(',')}) ORDER BY created_at DESC`), communityId, ...scope);
+    const providers = role === 'admin' ? rows(this.db.prepare('SELECT id,name,category,created_at createdAt FROM providers WHERE community_id=? ORDER BY name'), communityId) : [];
+    const expenses = role === 'admin' ? rows(this.db.prepare(`SELECT e.id,e.period,e.concept,e.amount_minor amountMinor,e.created_at createdAt,p.name provider
+      FROM expenses e JOIN providers p ON p.id=e.provider_id WHERE e.community_id=? ORDER BY e.created_at DESC`), communityId) : [];
     const audit = role === 'admin' ? rows(this.db.prepare(`SELECT id,action,entity_id entityId,created_at createdAt FROM audit_events WHERE community_id=? ORDER BY created_at DESC LIMIT 40`), communityId) : [];
-    return { role, communityId, units, charges, payments, announcements, documents, audit };
+    return { role, communityId, units, charges, payments, announcements, documents, providers, expenses, audit };
   }
   unitIsIn(communityId, unitId) {
     return Boolean(this.db.prepare('SELECT id FROM units WHERE community_id=? AND id=?').get(communityId, unitId));
@@ -208,6 +224,24 @@ export class Store {
     const title=requireText(data.title,'Título',90),body=requireText(data.body,'Mensaje',2000),id=randomUUID();
     this.db.prepare('INSERT INTO announcements VALUES (?,?,?,?,?,?)').run(id,communityId,title,body,userId,dateNow());
     this.audit(userId,communityId,'announcement.created',id);
+    return {id};
+  }
+  addProvider(userId,communityId,data){
+    this.requireAdmin(userId,communityId);
+    const name=requireText(data.name,'Proveedor',130),category=requireText(data.category,'Rubro',70),id=randomUUID();
+    try{this.db.prepare('INSERT INTO providers VALUES (?,?,?,?,?)').run(id,communityId,name,category,dateNow());}
+    catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Proveedor ya registrado');throw e;}
+    this.audit(userId,communityId,'provider.created',id);
+    return {id};
+  }
+  addExpense(userId,communityId,data){
+    this.requireAdmin(userId,communityId);
+    const providerId=requireText(data.providerId,'Proveedor',60),period=requirePeriod(data.period),
+      concept=requireText(data.concept,'Concepto',100),amountMinor=requireMinor(data.amountMinor);
+    if(!this.db.prepare('SELECT 1 FROM providers WHERE community_id=? AND id=?').get(communityId,providerId))throw new Problem(404,'Proveedor no disponible');
+    const id=randomUUID();
+    this.db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run(id,communityId,providerId,period,concept,amountMinor,dateNow());
+    this.audit(userId,communityId,'expense.created',id);
     return {id};
   }
   addDocument(userId,communityId,data){

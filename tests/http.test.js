@@ -36,6 +36,14 @@ test('API HTTP: login, autorización, validación, assets y revocación',async t
   assert.equal((await req('/src/connected.css')).headers.get('content-type'),'text/css; charset=utf-8');
   assert.equal((await req('/.data/condominio.sqlite')).status,404);
   assert.equal((await req('/server/store.js')).status,404);
+  assert.equal((await req(`/api/communities/${a}/reports/payments.csv`)).status,401);
+  const provider=(await req(`/api/communities/${a}/providers`,'POST',{name:'Ascensores QA',category:'Servicios'},login.token)).data;
+  assert.equal((await req(`/api/communities/${a}/expenses`,'POST',{providerId:provider.id,period:'2026-10',concept:'Servicio mensual',amountMinor:2500},login.token)).status,201);
+  const response=await fetch(origin+`/api/communities/${a}/reports/expenses.csv`,{headers:{Authorization:`Bearer ${login.token}`}});
+  assert.equal(response.status,200);
+  assert.equal(response.headers.get('content-type'),'text/csv; charset=utf-8');
+  assert.ok((await response.text()).includes('Servicio mensual'));
+  assert.equal(response.headers.get('x-frame-options'),'DENY');
   assert.equal((await req('/api/logout','POST',null,login.token)).status,200);
   assert.equal((await req('/api/session','GET',null,login.token)).status,401);
 });

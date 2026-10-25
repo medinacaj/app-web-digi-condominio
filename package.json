@@ -1,15 +1,16 @@
 {
   "name": "digi-condominio-web",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Interfaz web y backend local con SQLite, autenticación y aislamiento de comunidades",
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/entry.js && node --check src/connected.js && node --check server/store.js && node --check server/app.js && node --check server/bootstrap.js && node --check server/start.js && node --check src/main.js && node --check src/domain.js && node --check src/demo-data.js && node --check src/ui.js && npm test",
+    "check": "node --check src/entry.js && node --check src/connected.js && node --check server/store.js && node --check server/app.js && node --check server/report.js && node --check server/bootstrap.js && node --check server/backup.js && node --check server/start.js && node --check src/main.js && node --check src/domain.js && node --check src/demo-data.js && node --check src/ui.js && npm test",
     "serve": "python3 -m http.server 4173",
     "start": "node server/start.js",
-    "bootstrap": "node server/bootstrap.js"
+    "bootstrap": "node server/bootstrap.js",
+    "backup": "node server/backup.js"
   },
   "engines": {
     "node": ">=20"
