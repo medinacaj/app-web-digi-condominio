@@ -33,11 +33,11 @@ El trabajo debe hacerse mediante ramas y pull requests, con issues, pruebas veri
 
 Repositorio privado. No se autoriza la redistribución del código, los diseños o documentación sin permiso del titular. No se ha concedido una licencia de código abierto.
 
-## MVP local persistente · PR #10
+## MVP local 0.3.0 · PR #10
 
-Se implementó autenticación, sesión revocable, aislamiento por comunidad, roles administrador/comité/propietario, unidades, cuotas, pagos manuales, comunicados, fichas documentales y auditoría de altas. **No apto para datos reales ni producción**.
+Se implementó autenticación, sesiones revocables, aislamiento por comunidad y roles; unidades, cuotas, pagos manuales, proveedores, gastos, comunicados, fichas documentales, importación CSV local, exportaciones protegidas y auditoría de altas. **No apto para datos reales ni producción**.
 
-Instrucciones completas: [docs/MVP_LOCAL.md](docs/MVP_LOCAL.md). Requiere Node.js 22.16+ con `node:sqlite` experimental.
+Instrucciones completas: [docs/MVP_LOCAL.md](docs/MVP_LOCAL.md). Requiere Node.js 22.16+ con `node:sqlite` experimental. Comprobación local: **23 pruebas superadas**; para producción siguen pendientes permisos definitivos, integraciones, revisiones legales y pruebas avanzadas.
 
 ```bash
 # Configurar DIGI_ADMIN_EMAIL, DIGI_ADMIN_PASSWORD y DIGI_COMMUNITY_NAME sin versionarlos.
