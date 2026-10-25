@@ -1,49 +1,43 @@
 # Digi-Condominio
 
-Proyecto privado para diseñar y desarrollar una plataforma web de administración de condominios, comunidades y unidades inmobiliarias.
+Aplicación web privada para la gestión operativa de comunidades y condominios. **Versión local experimental 0.4.1.** El código está desarrollado y versionado en GitHub; **no** hay un servicio SaaS publicado, no debe procesar datos reales de residentes y no constituye contabilidad regulada.
 
-> Estado al 25-10-2026: **MVP local persistente implementado en PR #10 (borrador)**, sin despliegue de producción ni datos reales. País, marca y stack productivo pendientes.
+**Repositorio:** `medinacaj/app-web-digi-condominio` · **Rama oficial:** `main` · **Licencia:** código privativo; no hay licencia de código abierto.
 
-## Inicio y continuidad
+## Funciones implementadas en el MVP local
+- Panel web adaptable, autenticación por contraseña scrypt, sesiones revocables y vistas por administrador, comité y propietario.
+- Aislamiento entre comunidades en API y consultas. Unidades con propietario asignado, cuotas por periodo, pagos **registrados manualmente** y estado de cuenta.
+- Anulaciones auditables, proveedores, gastos, avisos, metadatos de documentos y reportes CSV protegidos frente a fórmulas.
+- Importación CSV con vista previa y transacción, provisión de usuarios por CLI, respaldo SQLite y verificación de integridad.
+- Operaciones y auditoría guardadas atómicamente (v0.4.1). **No existen pagos online, adjuntos documentales, invitaciones por email, MFA ni despliegue productivo.**
 
-1. [README_INICIAR_AQUI.md](README_INICIAR_AQUI.md): instrucciones para retomar.
-2. [CONTEXTO_MAESTRO.md](CONTEXTO_MAESTRO.md): visión, alcance y requisitos preliminares.
-3. [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md): estado real y siguiente acción.
-4. [DECISIONES_Y_CAMBIOS.md](DECISIONES_Y_CAMBIOS.md): decisiones, propuestas y registro de cambios.
-5. [docs/AUDITORIA_INICIAL.md](docs/AUDITORIA_INICIAL.md): hallazgos verificables de la inspección.
-6. [docs/BACKLOG_MVP.md](docs/BACKLOG_MVP.md): alcance y fases **propuestas**.
-7. [SECURITY.md](SECURITY.md): criterios de seguridad iniciales.
+## Iniciar localmente
 
-## Prototipo local (tras integrar el PR #9)
-
-```bash
-npm run serve   # abrir http://localhost:4173
-npm run check   # sintaxis + 7 pruebas unitarias
-```
-
-HTML, CSS y JavaScript sin dependencias; requiere Node.js 20+ para pruebas y Python 3 para el comando de servidor. Ver [docs/PROTOTIPO_WEB.md](docs/PROTOTIPO_WEB.md). El prototipo no almacena ni procesa datos reales.
-
-## Desarrollo
-
-**Dos modos de desarrollo**: prototipo estático demostrativo (PR #9) y MVP local con autenticación y SQLite (PR #10). Antes de producción: validar país, usuarios, MVP, arquitectura, privacidad, respaldos y criterios de aceptación.
-
-El trabajo debe hacerse mediante ramas y pull requests, con issues, pruebas verificables y actualización de `ESTADO_ACTUAL.md`. Evitar cambios directos en `main`.
-
-## Propiedad intelectual
-
-Repositorio privado. No se autoriza la redistribución del código, los diseños o documentación sin permiso del titular. No se ha concedido una licencia de código abierto.
-
-## MVP local 0.3.0 · PR #10
-
-Se implementó autenticación, sesiones revocables, aislamiento por comunidad y roles; unidades, cuotas, pagos manuales, proveedores, gastos, comunicados, fichas documentales, importación CSV local, exportaciones protegidas, auditoría de altas y anulaciones de movimientos con historial. **No apto para datos reales ni producción**.
-
-Instrucciones completas: [docs/MVP_LOCAL.md](docs/MVP_LOCAL.md). Requiere Node.js 22.16+ con `node:sqlite` experimental. Comprobación local: **24 pruebas superadas**; para producción siguen pendientes permisos definitivos, integraciones, revisiones legales y pruebas avanzadas.
+Requisitos: Node.js **22.16 o posterior**, navegador moderno, máquina privada. SQLite vía `node:sqlite` **experimental**.
 
 ```bash
-# Configurar DIGI_ADMIN_EMAIL, DIGI_ADMIN_PASSWORD y DIGI_COMMUNITY_NAME sin versionarlos.
+# Configure localmente variables de entorno SIN escribir contraseñas en el repositorio:
+# DIGI_ADMIN_EMAIL, DIGI_ADMIN_PASSWORD, DIGI_COMMUNITY_NAME
 npm run bootstrap
 npm start
+# http://127.0.0.1:4173
+
 npm run check
 ```
 
-No se han configurado usuarios ni contraseñas reales. Los tests usan identidades ficticias y bases de datos temporales.
+Alternativa sin backend, con datos únicamente ficticios: `npm run serve` (Python 3) y abrir `http://127.0.0.1:4173`. **No** abra ambos servidores en el mismo puerto.
+
+La aplicación requiere configurar las credenciales y la comunidad inicial desde la terminal; no hay credenciales predeterminadas. Las bases SQLite locales se guardan en `.data/` y deben permanecer fuera de Git.
+
+## Fuente de verdad y continuidad
+- [README_INICIAR_AQUI.md](README_INICIAR_AQUI.md): cómo retomar.
+- [CONTEXTO_MAESTRO.md](CONTEXTO_MAESTRO.md): visión, alcance, supuestos.
+- [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md): qué está integrado, pruebas, bloqueos y siguientes acciones.
+- [DECISIONES_Y_CAMBIOS.md](DECISIONES_Y_CAMBIOS.md): historial de decisiones y PR.
+- [docs/MVP_LOCAL.md](docs/MVP_LOCAL.md): comandos, seguridad y limitaciones de la implementación.
+- [docs/BACKLOG_MVP.md](docs/BACKLOG_MVP.md): criterios iniciales y prioridades restantes.
+- [SECURITY.md](SECURITY.md): advertencias y controles.
+
+## Estado y límites
+
+La versión 0.4.0 se incorporó a `main` por PR [#10](https://github.com/medinacaj/app-web-digi-condominio/pull/10), después de #1 y #9. Los controles adicionales de la v0.4.1 se desarrollaron y comprobaron como mejora posterior. El conjunto local tiene **29 pruebas**, pero falta validar normativas, consentimiento, restauraciones operativas, seguridad independiente y arquitectura productiva. El repositorio sigue privado; ningún cambio de visibilidad o despliegue puede hacerse sin autorización.

@@ -1,105 +1,198 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "project": "app-web-digi-condominio",
-  "reference_date": "2026-10-25",
-  "official_repository": "medinacaj/app-web-digi-condominio",
-  "baseline_main_sha": "3dfb07c76fcdbf52c2c0938a238255f36174db4e",
-  "inventory_scope": "documentación inicial propuesta en rama de trabajo, no implica merge",
-  "baseline": [
+  "snapshot_date": "2026-10-25",
+  "repository": "medinacaj/app-web-digi-condominio",
+  "visibility": "private",
+  "baseline_main_sha": "547e4b193d999994e4ed2f1cce8289d8f86c6926",
+  "baseline_merged_prs": [
+    1,
+    9,
+    10
+  ],
+  "baseline_main_files": 40,
+  "candidate_files": 42,
+  "files": [
+    {
+      "path": ".github/workflows/checks.yml",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": ".gitignore",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "CONTEXTO_MAESTRO.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "DECISIONES_Y_CAMBIOS.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "docs/AUDITORIA_INICIAL.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "docs/BACKLOG_MVP.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "docs/MVP_LOCAL.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "docs/PROTOTIPO_WEB.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "ESTADO_ACTUAL.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "index.html",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "INFORME_TRANSFERENCIA.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "INVENTARIO_ARCHIVOS.json",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "package.json",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "PROMPT_REANUDACION.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "README_INICIAR_AQUI.md",
+      "status": "existente_en_main_v0.4.0"
+    },
     {
       "path": "README.md",
-      "status": "observado_en_main_antes_de_la_propuesta",
-      "size_bytes": 25,
-      "sha_blob": "5c135f1f399fac5e1c33029feccd9c446b38b43a"
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "SECURITY.md",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "server/add-user.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "server/app.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "server/backup.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "server/bootstrap.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "server/import-csv.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "server/report.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "server/start.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "server/store.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "src/connected.css",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "src/connected.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "src/demo-data.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "src/domain.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "src/entry.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "src/main.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "src/styles.css",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "src/ui.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "tests/atomic-audit.test.js",
+      "status": "nuevo_en_revision_v0.4.1"
+    },
+    {
+      "path": "tests/backup.test.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "tests/domain.test.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "tests/http.test.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "tests/import.test.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "tests/report.test.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "tests/reversal.test.js",
+      "status": "existente_en_main_v0.4.0"
+    },
+    {
+      "path": "tests/security-config.test.js",
+      "status": "nuevo_en_revision_v0.4.1"
+    },
+    {
+      "path": "tests/store.test.js",
+      "status": "existente_en_main_v0.4.0"
     }
   ],
-  "proposed_paths": [
-    "README.md",
-    "README_INICIAR_AQUI.md",
-    "CONTEXTO_MAESTRO.md",
-    "ESTADO_ACTUAL.md",
-    "DECISIONES_Y_CAMBIOS.md",
-    "docs/AUDITORIA_INICIAL.md",
-    "docs/BACKLOG_MVP.md",
-    "SECURITY.md",
-    ".gitignore",
-    "PROMPT_REANUDACION.md",
-    "INFORME_TRANSFERENCIA.md",
-    "INVENTARIO_ARCHIVOS.json"
-  ],
-  "app_source_files": [
-    "index.html",
-    "src/demo-data.js",
-    "src/domain.js",
-    "src/main.js",
-    "src/ui.js",
-    "src/styles.css"
-  ],
-  "tests": [
-    "tests/domain.test.js",
-    "tests/store.test.js",
-    "tests/http.test.js",
-    "tests/report.test.js",
-    "tests/backup.test.js",
-    "tests/import.test.js",
-    "tests/reversal.test.js"
-  ],
-  "workflows": [
-    ".github/workflows/checks.yml"
-  ],
-  "production_deployments": "no_verificado",
-  "source_sha256": "no_calculado",
-  "imported_private_source_pdf": false,
-  "notes": "Archivo de inventario incluye documentación del PR #1 y propuesta web del PR #9. Ambas son ramas no fusionadas al corte; verificar estado actual de GitHub antes de reutilizar.",
-  "prototype_status": "MVP local preparado en rama, aún no integrado a main",
-  "prototype_branch": "feat/prototipo-web-2026-10-25",
-  "prototype_pr": "https://github.com/medinacaj/app-web-digi-condominio/pull/9",
-  "prototype_paths": [
-    "index.html",
-    "package.json",
-    "src/demo-data.js",
-    "src/domain.js",
-    "src/main.js",
-    "src/ui.js",
-    "src/styles.css",
-    "tests/domain.test.js",
-    ".github/workflows/checks.yml",
-    "docs/PROTOTIPO_WEB.md"
-  ],
-  "local_verification": {
-    "tests_passed": 24,
-    "tests_failed": 0,
-    "http_api": "tested",
-    "browser_offline": "tested_with_mock_api",
-    "browser_real_http": "blocked_by_environment",
-    "backup_restore": "tested",
-    "csv_import_transaction": "tested",
-    "production_deployed": false,
-    "reversals": "tested",
-    "github_actions_initial_v04": "success"
+  "version_candidate": "0.4.1",
+  "tests_local": {
+    "passed": 29,
+    "failed": 0
   },
-  "local_mvp_branch": "feat/mvp-local-seguro-2026-10-25",
-  "local_mvp_pr": "https://github.com/medinacaj/app-web-digi-condominio/pull/10",
-  "local_mvp_paths": [
-    "index.html",
-    "src/entry.js",
-    "src/connected.js",
-    "src/connected.css",
-    "server/store.js",
-    "server/app.js",
-    "server/start.js",
-    "server/bootstrap.js",
-    "tests/store.test.js",
-    "tests/http.test.js",
-    "docs/MVP_LOCAL.md",
-    "server/report.js",
-    "server/backup.js",
-    "server/add-user.js",
-    "server/import-csv.js",
-    "tests/report.test.js",
-    "tests/backup.test.js",
-    "tests/import.test.js",
-    "tests/reversal.test.js"
-  ],
-  "app_version": "0.4.0"
+  "ci_main_baseline": {
+    "run_id": 40227481519,
+    "conclusion": "success"
+  },
+  "deployment": "no_publicado",
+  "privacy": "repositorio_privado",
+  "secrets_or_real_resident_data": "no_incluidos_en_el_codigo_creado",
+  "verification_note": "Los estados de merge/CI y contenidos cambian con el tiempo; consultar GitHub antes de afirmar situación actual. Este manifiesto se construyó sobre main 0.4.0 con cambios candidatos 0.4.1."
 }

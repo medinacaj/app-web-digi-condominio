@@ -23,3 +23,9 @@ Se implementan hash scrypt de contraseñas con salt, tokens de sesión aleatorio
 ### Anulación de movimientos v0.4.0
 
 La administración anula registros financieros con motivo obligatorio y registro inmutable; la base de datos impide segunda anulación del mismo movimiento. Los saldos excluyen anulaciones. Se requiere revisión legal antes de atribuir efectos contables o jurídicos a estas anotaciones.
+
+## Auditoría correctiva v0.4.1 (2026-10-25)
+
+Se reforzó `.gitignore` para incluir `.env`, certificados, llaves, bases SQLite, journals, copias locales y directorios privados. **Ignorar archivos no evita comprometer un secreto ya rastreado**: además se debe evitar crearlos en el árbol de trabajo y revisar historial/configuración de acceso con permisos correspondientes.
+
+Las escrituras de unidades, cuotas, pagos, anulaciones, avisos, proveedores, gastos y documentos ahora usan `SAVEPOINT` para persistir o revertir **junto con su auditoría**. La importación CSV usa una transacción exterior y no pierde atomicidad. Se añadieron pruebas de fallo inducido y configuración, para un total local de **29 tests**. Estos controles son parciales y no autorizan uso productivo, procesar datos personales reales ni habilitar acceso remoto.
