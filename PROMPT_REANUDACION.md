@@ -10,4 +10,4 @@ Trabaja con el repositorio privado `medinacaj/app-web-digi-condominio`; verifica
 6. Cierra tareas solo con evidencia, y mantén un único historial coherente en GitHub.
 7. Antes de programar lógica jurisdiccional, confirma país inicial, reglas, modelo financiero y alcance aprobado.
 
-Siguiente paso del paquete inicial: evaluar PR de documentación, revisar backlog y decidir MVP/arquitectura. Esta nota no reemplaza la inspección de GitHub en tiempo real.
+Siguiente paso del paquete inicial: revisar PR #1 y PR #9 (prototipo web), validar visualmente y continuar issues #2–#8. El prototipo usa sólo datos ficticios. No integrar, publicar ni conectar producción automáticamente. Esta nota no reemplaza la inspección de GitHub en tiempo real.
