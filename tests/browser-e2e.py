@@ -22,6 +22,14 @@ with tempfile.TemporaryDirectory() as td:
     env={**os.environ,'DIGI_DB_PATH':f'{td}/test.sqlite','DIGI_ADMIN_EMAIL':EMAIL,'DIGI_ADMIN_PASSWORD':PASSWORD,'DIGI_COMMUNITY_NAME':'Comunidad demostración','PORT':str(PORT)}
     bootstrap=subprocess.run(['node','server/bootstrap.js'],cwd=ROOT,env=env,capture_output=True,text=True)
     assert bootstrap.returncode==0,bootstrap.stderr
+    # Provision a synthetic owner via the private local store (no production credentials).
+    seed='''import { Store } from './server/store.js';
+const s=new Store(process.env.DIGI_DB_PATH);
+const community=s.db.prepare('SELECT id FROM communities LIMIT 1').get().id;
+const id=s.createUser('owner@example.test','OwnerStrongPassword#2026','Propietario de prueba');
+s.setMembership(id,community,'owner');s.close();'''
+    created=subprocess.run(['node','--input-type=module','-e',seed],cwd=ROOT,env=env,capture_output=True,text=True)
+    assert created.returncode==0,created.stderr
     server=subprocess.Popen(['node','server/start.js'],cwd=ROOT,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
     try:
         for n in range(80):
@@ -64,6 +72,15 @@ with tempfile.TemporaryDirectory() as td:
             page.get_by_label('Contraseña').fill(PASSWORD)
             page.get_by_role('button',name='Ingresar al espacio privado').click()
             page.get_by_role('heading',name='Resumen').wait_for(timeout=9000)
+            page.get_by_role('button',name='Unidades').click()
+            page.get_by_role('button',name='Añadir unidad').click()
+            page.get_by_label('Código').fill('A-101')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_role('button',name='Cambiar').wait_for(timeout=9000)
+            page.get_by_role('button',name='Cambiar').click()
+            page.locator('select[name=ownerUserId]').select_option(label='Propietario de prueba (owner@example.test)')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Propietario de prueba').first.wait_for(timeout=9000)
             page.get_by_role('button',name='Incidencias').click()
             page.get_by_role('heading',name='Incidencias').wait_for()
             page.get_by_role('button',name='Reportar incidencia').click()
@@ -99,7 +116,19 @@ with tempfile.TemporaryDirectory() as td:
                 Path(output).mkdir(parents=True,exist_ok=True)
                 page.set_viewport_size({'width':1440,'height':900});page.screenshot(path=str(Path(output)/'digi-incidencias-desktop.png'),full_page=True)
                 page.set_viewport_size({'width':390,'height':844});page.wait_for_timeout(380);page.screenshot(path=str(Path(output)/'digi-incidencias-mobile.png'),full_page=True)
-            print(('DIRECT' if DIRECT else 'BRIDGE')+' BROWSER + REAL NODE API OK: login, report, comment, status, XSS, responsive, 0 JS errors')
+            # Confirm the reassigned owner sees their unit after a separate login.
+            page.set_viewport_size({'width':1440,'height':900})
+            page.wait_for_timeout(400)
+            page.get_by_role('button',name='Salir de la sesión').click()
+            page.get_by_label('Correo electrónico').fill('owner@example.test')
+            page.get_by_label('Contraseña').fill('OwnerStrongPassword#2026')
+            page.get_by_role('button',name='Ingresar al espacio privado').click()
+            page.get_by_role('heading',name='Resumen').wait_for(timeout=9000)
+            page.get_by_role('button',name='Unidades').click()
+            page.get_by_text('A-101').wait_for(timeout=9000)
+            assert page.get_by_role('button',name='Añadir unidad').count()==0
+            assert not errors,errors
+            print(('DIRECT' if DIRECT else 'BRIDGE')+' WEB+API OK: login admin/owner, assign owner, incidents, status, XSS, responsive, 0 JS errors')
             browser.close()
     finally:
         server.terminate();server.wait(timeout=5)

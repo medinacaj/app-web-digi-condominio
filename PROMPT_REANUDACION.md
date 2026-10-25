@@ -8,3 +8,6 @@ No hay sistema productivo, datos reales, pagarela de pagos ni país o marca defi
 
 
 Continuidad 2026-10-25: verificar estado de PR #17 (módulo de incidencias v0.5.0) y su CI en GitHub. La rama incluye UI y backend real con 32 pruebas Node locales; el job navegador se cambió a Ubuntu 24.04 tras fallo de instalación con runner Ubuntu 26.04. La app sigue local y experimental. No usar datos de residentes reales ni desplegar hasta aprobación de seguridad y legal.
+
+
+Actualización v0.6.0: el PR #17 de incidencias ya se fusionó. Revisar PR #19 para asignación web de propietarios y limpieza de sesión, con 35 tests Node locales y E2E. Solo considerarlo integrado si `main` contiene su commit y las pruebas remotas son exitosas. El repositorio sigue privado y la app no está desplegada.

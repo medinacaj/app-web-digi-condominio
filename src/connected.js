@@ -4,7 +4,7 @@ const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,m
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
 const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑'};
 const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,members:[]};
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
   const response=await fetch(path,{method,cache:'no-store',headers:{...(state.token?{Authorization:`Bearer ${state.token}`} : {}),...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,credentials:'omit'});
@@ -35,7 +35,7 @@ function renderDashboard(data){
 function renderUnits(data,small=false){
   const list=small?data.units.slice(0,5):filtered(data.units,['code','kind','resident']);
   if(!list.length)return info('No hay unidades visibles.');
-  return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Tipo</th><th>Ocupante</th>${data.role==='committee'? '':'<th>Saldo</th>'}</tr></thead><tbody>${list.map(x=>`<tr><td><strong>${h(x.code)}</strong></td><td>${h(x.kind)}</td><td>${h(x.resident||'Sin información')}</td>${data.role==='committee'?'':`<td class="money">${money(x.balanceMinor)}</td>`}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Tipo</th><th>Ocupante</th>${data.role==='committee'? '':'<th>Saldo</th>'}${data.role==='admin'&&!small?'<th>Propietario</th>':''}</tr></thead><tbody>${list.map(x=>`<tr><td><strong>${h(x.code)}</strong></td><td>${h(x.kind)}</td><td>${h(x.resident||'Sin información')}</td>${data.role==='committee'?'':`<td class="money">${money(x.balanceMinor)}</td>`}${data.role==='admin'&&!small?`<td><span class="owner-display">${h(state.members.find(m=>m.id===x.ownerUserId)?.displayName??'Sin asignar')}</span><button class="owner-link" data-unit-owner="${h(x.id)}">Cambiar</button></td>`:''}</tr>`).join('')}</tbody></table></div>`;
 }
 function renderCharges(data){
   if(data.role==='committee')return info('La información financiera está restringida para este rol.');
@@ -101,6 +101,7 @@ function modalHtml(){
     expense:['Registrar gasto',`<label>Proveedor<select name="providerId" required>${providerOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="100.00"></label><p>Registra un gasto operativo; no equivale a contabilidad formal.</p>`],
     incident:['Reportar incidencia',`<label>Unidad o área<select name="unitId"><option value="">Área común</option>${selectOptions()}</select></label><label>Categoría<select name="category"><option value="maintenance">Mantenimiento</option><option value="security">Seguridad</option><option value="cleaning">Limpieza</option><option value="noise">Ruidos</option><option value="other">Otros</option></select></label><label>Prioridad<select name="priority"><option value="normal">Normal</option><option value="low">Baja</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></label><label>Título<input name="title" maxlength="120" required></label><label>Descripción<textarea name="detail" maxlength="2000" rows="5" required></textarea></label><p>El seguimiento queda registrado. No se admiten fotografías ni archivos en esta versión.</p>`],
     'incident-comment':['Añadir comentario',`<label>Comentario<textarea name="note" maxlength="1200" rows="5" required></textarea></label>`],
+    'owner-assignment':['Asignar propietario',`<p>Los usuarios se crean de forma privada mediante CLI. Solo se listan miembros con rol propietario de esta comunidad.</p><label>Propietario<select name="ownerUserId"><option value="">Sin asignar</option>${state.members.filter(m=>m.role==='owner').map(m=>`<option value="${h(m.id)}" ${state.data?.units.find(u=>u.id===state.ownerTarget)?.ownerUserId===m.id?'selected':''}>${h(m.displayName)} (${h(m.email)})</option>`).join('')}</select></label><p>La modificación quedará en el historial de auditoría. Al quitar una asignación, el propietario pierde acceso a la unidad.</p>`],
     'incident-status':['Actualizar incidencia',`<label>Estado<select name="status"><option value="in_progress">En atención</option><option value="resolved">Resuelta</option><option value="closed">Cerrada</option><option value="open">Abierta</option></select></label><label>Justificación<textarea name="note" maxlength="500" minlength="8" rows="4" required></textarea></label>`],
     document:['Registrar metadatos de documento',`<label>Título<input name="title" maxlength="150" required></label><label>Categoría<input name="category" maxlength="60" required placeholder="Actas"></label><label>Visibilidad<select name="scope"><option value="community">Toda la comunidad</option><option value="committee">Administración y comité</option><option value="admin">Solo administración</option></select></label><p>No se carga ningún archivo; es solo un registro documental.</p>`],
   }[type];
@@ -115,11 +116,13 @@ function render(){
 }
 async function refresh(){
   const [cs,d]=await Promise.all([request('/api/communities'),request(`${base()}/overview`)]);
-  state.communities=cs.communities;state.data=d;state.error='';render();
+  state.communities=cs.communities;state.data=d;
+  state.members=d.role==='admin'?(await request(`${base()}/members`)).members:[];
+  state.error='';render();
 }
 async function login(form){
   state.busy=true;state.error='';render();
-  try{const login=await request('/api/login','POST',Object.fromEntries(new FormData(form)));state.token=login.token;state.user=login.user;
+  try{const login=await request('/api/login','POST',Object.fromEntries(new FormData(form)));state.token=login.token;state.user=login.user;state.page='dashboard';state.query='';state.menuOpen=false;state.members=[];state.ownerTarget=null;state.incidentTarget=null;state.reverseTarget=null;
     const result=await request('/api/communities');state.communities=result.communities;
     if(!state.communities.length)throw new Error('Tu cuenta no tiene comunidades asignadas');
     state.selected=state.communities[0].id;await refresh();
@@ -147,6 +150,14 @@ async function submitCreate(form){
 }
 app.addEventListener('submit',async event=>{
   if(event.target.id==='login-form'){event.preventDefault();await login(event.target);return;}
+  if(event.target.id==='create-form' && event.target.dataset.type==='owner-assignment'){
+    event.preventDefault();if(state.busy)return;
+    const ownerUserId=String(new FormData(event.target).get('ownerUserId')??'');
+    state.busy=true;event.target.querySelector('button[type=submit]').disabled=true;
+    try{await request(`${base()}/units/${state.ownerTarget}/owner`,'PATCH',{ownerUserId});state.modal=null;state.ownerTarget=null;await refresh();}
+    catch(e){state.error=e.message;render();}finally{state.busy=false;}
+    return;
+  }
   if(event.target.id==='create-form' && ['incident-comment','incident-status'].includes(event.target.dataset.type)){
     event.preventDefault();if(state.busy)return;
     const kind=event.target.dataset.type,target=state.incidentTarget,data=Object.fromEntries(new FormData(event.target));
@@ -166,6 +177,8 @@ app.addEventListener('submit',async event=>{
 app.addEventListener('click',async event=>{
   const page=event.target.closest('[data-page]')?.dataset.page;
   if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();return;}
+  const unitOwner=event.target.closest('[data-unit-owner]');
+  if(unitOwner){state.ownerTarget=unitOwner.dataset.unitOwner;state.modal='owner-assignment';state.error='';render();document.querySelector('.live-modal select')?.focus();return;}
   const replying=event.target.closest('[data-incident-comment]');
   if(replying){state.incidentTarget=replying.dataset.incidentComment;state.modal='incident-comment';state.error='';render();document.querySelector('.live-modal textarea')?.focus();return;}
   const statusButton=event.target.closest('[data-incident-status]');
@@ -185,7 +198,7 @@ app.addEventListener('click',async event=>{
       a.href=url;a.download=`digi-${exportName}.csv`;document.body.append(a);a.click();a.remove();URL.revokeObjectURL(url);
     }catch(e){state.error=e.message;render();}return;
   }
-  if(event.target.closest('[data-logout]')){try{await request('/api/logout','POST');}catch{}state.token=null;state.user=null;state.data=null;state.error='';render();}
+  if(event.target.closest('[data-logout]')){try{await request('/api/logout','POST');}catch{}state.token=null;state.user=null;state.data=null;state.communities=[];state.selected=null;state.page='dashboard';state.query='';state.members=[];state.menuOpen=false;state.ownerTarget=null;state.incidentTarget=null;state.reverseTarget=null;state.modal=null;state.error='';render();}
 });
 app.addEventListener('change',async event=>{
   if(event.target.id!=='live-community')return;

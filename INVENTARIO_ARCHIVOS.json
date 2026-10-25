@@ -182,9 +182,9 @@
       "status": "existente_en_main_v0.4.0"
     }
   ],
-  "version_candidate": "0.5.0",
+  "version_candidate": "0.6.0",
   "tests_local": {
-    "passed": 32,
+    "passed": 35,
     "failed": 0
   },
   "ci_main_baseline": {
@@ -195,16 +195,18 @@
   "privacy": "repositorio_privado",
   "secrets_or_real_resident_data": "no_incluidos_en_el_codigo_creado",
   "verification_note": "Los estados de merge/CI y contenidos cambian con el tiempo; consultar GitHub antes de afirmar situación actual. Este manifiesto se construyó sobre main 0.4.0 con cambios candidatos 0.4.1.",
-  "pr_candidate": "https://github.com/medinacaj/app-web-digi-condominio/pull/17",
-  "issue_candidate": "https://github.com/medinacaj/app-web-digi-condominio/issues/16",
-  "files_in_candidate": 46,
+  "pr_candidate": "https://github.com/medinacaj/app-web-digi-condominio/pull/19",
+  "issue_candidate": "https://github.com/medinacaj/app-web-digi-condominio/issues/18",
+  "files_in_candidate": 48,
   "new_candidate_paths": [
     ".env.example",
     "docs/INCIDENCIAS.md",
     "tests/incidents.test.js",
-    "tests/browser-e2e.py"
+    "tests/browser-e2e.py",
+    "docs/ASIGNACIONES.md",
+    "tests/ownership.test.js"
   ],
-  "browser_e2e_direct_ci": "not_yet_confirmed",
-  "last_verified_main": "d38f7dfdcaf0be852135b93561e895f4fc585a23",
-  "revision_notice": "Los nuevos archivos viven en rama PR #17 hasta merge; main sigue en v0.4.1. Revisar HEAD y CI antes de concluir."
+  "browser_e2e_direct_ci": "PR #19 first code commit completed success, verify latest",
+  "last_verified_main": "d75e8e5800044b5c84580dcce26bba11ba4848a0",
+  "revision_notice": "Version 0.6.0 proposed in PR #19, not main until merged. Legal and production remain pending."
 }
