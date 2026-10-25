@@ -64,3 +64,15 @@ Después de cada cambio: fecha/hora, issue, PR/commit, alcance, archivos, estado
 ## CI remoto GitHub Actions (2026-10-25)
 
 La ejecución `40224344777` del workflow **Comprobaciones del prototipo**, asociada al PR #9, terminó con estado `completed` y conclusión **success**. Esto valida los pasos automatizados configurados de sintaxis y pruebas unitarias, no despliegue ni seguridad productiva.
+
+## 2026-10-25 — Segunda fase: MVP local (PR #10)
+
+- Rama `feat/mvp-local-seguro-2026-10-25`, dependiente de PR #9, que a su vez depende de PR #1. **Ninguno de estos PR está fusionado en `main` a este corte.**
+- PR #10: https://github.com/medinacaj/app-web-digi-condominio/pull/10.
+- Backend local Node 22 `node:http`, SQLite `node:sqlite` experimental; REST limitado al host 127.0.0.1.
+- Autenticación con scrypt/sal, tokens aleatorios hasheados, caducidad 8h y logout.
+- Datos persistentes: comunidades, membresías, unidades, cuotas, pagos manuales, avisos y fichas documentales. Roles admin/comité/propietario aplicados en servidor; saldos de comité suprimidos; propietarios limitados a sus unidades.
+- Prevención de cargos duplicados por unidad/período/concepto, pagos duplicados por referencia y auditoría de altas. La gestión de archivos adjuntos, bancos e invitaciones no está implementada.
+- **Pruebas ejecutadas localmente:** `npm run check` 17/17 correctas, incluye HTTP real, permisos negativos entre tenants y SQLite reabierto. En Chromium offline con mock API: login, unidades, cuotas, pagos, XSS escapado y sin overflow a 360/390/1440; sin errores JS.
+- **Limitación de QA:** Chromium bloqueó navegación HTTP local por política del entorno; no se declara E2E navegador+backend. GitHub Actions remoto requiere comprobación de conclusión final tras cada commit.
+- **Siguiente acción concreta:** revisar PR #10, validar reglas del negocio y país; pruebas E2E reales, migraciones/backup, onboarding de usuarios y funciones financieras/documentales pendientes antes de operar con datos reales.
