@@ -1,4 +1,4 @@
-# Digi-Condominio · MVP local 0.2.0
+# Digi-Condominio · MVP local 0.3.0
 
 **Estado:** implementación local en fase de validación; **NO apto para producción**.
 
@@ -70,3 +70,29 @@ npm run backup
 ```
 
 El comando usa el backup online de SQLite y verifica `PRAGMA integrity_check` sobre la copia. No sobrescribe destinos existentes. **No cifra el respaldo**: la responsabilidad de cifrarlo y guardarlo en un lugar seguro sigue siendo del operador. La restauración se realiza con la aplicación detenida, copiando cuidadosamente el respaldo y verificándolo antes de volver a iniciar. Prueba automatizada de recuperación incluida; no es un plan de desastre homologado.
+
+## Alta local de usuarios (sin invitación por correo)
+
+Para pruebas con roles individuales, el administrador puede crear usuarios **por CLI** y asignarlos a una comunidad. Configurar: `DIGI_ADMIN_EMAIL` (administrador existente), `DIGI_TARGET_COMMUNITY_ID`, `DIGI_NEW_USER_EMAIL`, `DIGI_NEW_USER_PASSWORD`, `DIGI_NEW_USER_ROLE` (`admin`, `committee` o `owner`) y, opcionalmente, `DIGI_NEW_USER_NAME`. Cuando el rol es `owner`, `DIGI_ASSIGN_UNIT_CODE` asigna a una unidad existente sin propietario. Se rechaza la reasignación silenciosa.
+
+```bash
+# Las variables deben configurarse de forma segura, evitando registrar contraseñas.
+npm run add-user
+```
+
+La operación es transaccional y deja registro de auditoría. **No proporciona verificación de correo, contraseña temporal, MFA ni enlaces de invitación**. Compartir credenciales por canales autorizados, nunca en GitHub. No es un flujo final de alta de residentes.
+
+## Importación CSV inicial de unidades
+
+CSV UTF-8 con cabecera exacta: `code,kind,resident`. Se aceptan comillas escapadas, separadores y saltos de línea RFC4180; hasta 500 registros y 1 MB por importación. Valida duplicados, tipos, tamaño y aislamiento de la comunidad.
+
+```bash
+export DIGI_IMPORT_FILE='/ruta-privada/unidades-demo.csv'
+export DIGI_TARGET_COMMUNITY_ID='id-comunidad-obtenido-de-la-base'
+export DIGI_ADMIN_EMAIL='admin@ejemplo.test'
+npm run import-units              # validación, NO escribe
+export DIGI_IMPORT_APPLY=yes
+npm run import-units              # escribe de forma atómica
+```
+
+Esta es una **herramienta local experimental**. No importar datos personales reales hasta validar permisos, jurisdicción, legalidad y procedimiento de migración. Nunca subir CSV con residentes a issues o commits.
