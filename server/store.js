@@ -82,6 +82,13 @@ export class Store {
         title TEXT NOT NULL, category TEXT NOT NULL, scope TEXT NOT NULL CHECK(scope IN ('community','committee','admin')),
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS reversals (
+        id TEXT PRIMARY KEY, community_id TEXT NOT NULL REFERENCES communities(id),
+        entity_type TEXT NOT NULL CHECK(entity_type IN ('charge','payment')),
+        entity_id TEXT NOT NULL, actor_user_id TEXT NOT NULL REFERENCES users(id),
+        reason TEXT NOT NULL, created_at TEXT NOT NULL,
+        UNIQUE(community_id,entity_type,entity_id)
+      );
       CREATE TABLE IF NOT EXISTS providers (
         id TEXT PRIMARY KEY, community_id TEXT NOT NULL REFERENCES communities(id),
         name TEXT NOT NULL, category TEXT NOT NULL, created_at TEXT NOT NULL,
@@ -106,6 +113,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_payments_community ON payments(community_id,unit_id);
       CREATE INDEX IF NOT EXISTS ix_announcements_community ON announcements(community_id);
       CREATE INDEX IF NOT EXISTS ix_expenses_community ON expenses(community_id);
+      CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
   }
@@ -168,12 +176,16 @@ export class Store {
     const role = this.member(userId, communityId);
     const visibility = role === 'owner' ? ' AND u.owner_user_id=?' : '';
     const params = role === 'owner' ? [communityId, userId] : [communityId];
-    const balanceColumn = role === 'committee' ? 'NULL' : `COALESCE((SELECT SUM(c.amount_minor) FROM charges c WHERE c.unit_id=u.id),0) - COALESCE((SELECT SUM(p.amount_minor) FROM payments p WHERE p.unit_id=u.id),0)`;
+    const balanceColumn = role === 'committee' ? 'NULL' : `COALESCE((SELECT SUM(c.amount_minor) FROM charges c WHERE c.unit_id=u.id AND NOT EXISTS (SELECT 1 FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id)),0) - COALESCE((SELECT SUM(p.amount_minor) FROM payments p WHERE p.unit_id=u.id AND NOT EXISTS (SELECT 1 FROM reversals r WHERE r.community_id=p.community_id AND r.entity_type='payment' AND r.entity_id=p.id)),0)`;
     const units = rows(this.db.prepare(`SELECT u.id,u.code,u.kind,u.resident,${role === 'admin' ? 'u.owner_user_id' : 'NULL'} ownerUserId,
       ${balanceColumn} balanceMinor FROM units u WHERE u.community_id=?${visibility} ORDER BY u.code`), ...params);
-    const charges = role === 'committee' ? [] : rows(this.db.prepare(`SELECT c.id,c.unit_id unitId,u.code unit,c.period,c.concept,c.amount_minor amountMinor,c.created_at createdAt
+    const charges = role === 'committee' ? [] : rows(this.db.prepare(`SELECT c.id,c.unit_id unitId,u.code unit,c.period,c.concept,c.amount_minor amountMinor,c.created_at createdAt,
+      EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id) reversed,
+      ${role === 'admin' ? `(SELECT reason FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id)` : 'NULL'} reverseReason
       FROM charges c JOIN units u ON u.id=c.unit_id WHERE c.community_id=?${visibility} ORDER BY c.created_at DESC`), ...params);
-    const payments = role === 'committee' ? [] : rows(this.db.prepare(`SELECT p.id,p.unit_id unitId,u.code unit,p.reference,p.concept,p.amount_minor amountMinor,p.created_at createdAt
+    const payments = role === 'committee' ? [] : rows(this.db.prepare(`SELECT p.id,p.unit_id unitId,u.code unit,p.reference,p.concept,p.amount_minor amountMinor,p.created_at createdAt,
+      EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=p.community_id AND r.entity_type='payment' AND r.entity_id=p.id) reversed,
+      ${role === 'admin' ? `(SELECT reason FROM reversals r WHERE r.community_id=p.community_id AND r.entity_type='payment' AND r.entity_id=p.id)` : 'NULL'} reverseReason
       FROM payments p JOIN units u ON u.id=p.unit_id WHERE p.community_id=?${visibility} ORDER BY p.created_at DESC`), ...params);
     const announcements = rows(this.db.prepare('SELECT id,title,body,created_at createdAt FROM announcements WHERE community_id=? ORDER BY created_at DESC'), communityId);
     const scope = role === 'admin' ? ['community','committee','admin'] : role === 'committee' ? ['community','committee'] : ['community'];
@@ -224,6 +236,20 @@ export class Store {
     const title=requireText(data.title,'Título',90),body=requireText(data.body,'Mensaje',2000),id=randomUUID();
     this.db.prepare('INSERT INTO announcements VALUES (?,?,?,?,?,?)').run(id,communityId,title,body,userId,dateNow());
     this.audit(userId,communityId,'announcement.created',id);
+    return {id};
+  }
+  reverseEntry(userId,communityId,type,entityId,reason){
+    this.requireAdmin(userId,communityId);
+    if(!['charge','payment'].includes(type))throw new Problem(400,'Tipo de reverso no admitido');
+    reason=requireText(reason,'Motivo de reverso',500);
+    if(reason.length<10)throw new Problem(400,'El motivo requiere 10 caracteres o más');
+    const table=type==='charge'?'charges':'payments';
+    const exists=this.db.prepare(`SELECT id FROM ${table} WHERE id=? AND community_id=?`).get(entityId,communityId);
+    if(!exists)throw new Problem(404,'Movimiento no disponible');
+    const id=randomUUID();
+    try{this.db.prepare('INSERT INTO reversals VALUES (?,?,?,?,?,?,?)').run(id,communityId,type,entityId,userId,reason,dateNow());}
+    catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Movimiento ya reversado');throw e;}
+    this.audit(userId,communityId,`${type}.reversed`,entityId);
     return {id};
   }
   addProvider(userId,communityId,data){

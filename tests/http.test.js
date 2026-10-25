@@ -45,6 +45,11 @@ test('API HTTP: login, autorización, validación, assets y revocación',async t
   assert.equal(response.headers.get('content-type'),'text/csv; charset=utf-8');
   assert.ok((await response.text()).includes('Servicio mensual'));
   assert.equal(response.headers.get('x-frame-options'),'DENY');
+  const paid=(await req(`/api/communities/${a}/charges`,'POST',{unitId:overview.units[0].id,period:'2026-10',concept:'Cuota 1',amountMinor:1000},login.token));
+  assert.equal(paid.status,201);
+  assert.equal((await req(`/api/communities/${a}/charges/${paid.data.id}/reverse`,'POST',{reason:'Cuota creada por error'},login.token)).status,201);
+  assert.equal((await req(`/api/communities/${a}/charges/${paid.data.id}/reverse`,'POST',{reason:'Otra anulación duplicada'},login.token)).status,409);
+  assert.equal((await req(`/api/communities/${a}/overview`,'GET',null,login.token)).data.charges[0].reversed,1);
   assert.equal((await req('/api/logout','POST',null,login.token)).status,200);
   assert.equal((await req('/api/session','GET',null,login.token)).status,401);
 });

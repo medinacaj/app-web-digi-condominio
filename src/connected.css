@@ -7,3 +7,5 @@
 @media(max-width:1300px){.live-kpis:has(article:nth-child(5)){grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:750px){.live-kpis:has(article:nth-child(5)){grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:390px){.live-kpis:has(article:nth-child(5)){grid-template-columns:1fr}}
+
+.live-void{opacity:.58}.live-reverse{border:1px solid #f3ccd1;background:#fff7f8;color:#ae4256;border-radius:9px;padding:8px 11px;font-size:11px;font-weight:700}.live-reverse:hover{background:#ffecee}

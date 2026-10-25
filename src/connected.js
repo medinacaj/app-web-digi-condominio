@@ -4,7 +4,7 @@ const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,m
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
 const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥'};
 const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null};
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
   const response=await fetch(path,{method,cache:'no-store',headers:{...(state.token?{Authorization:`Bearer ${state.token}`} : {}),...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,credentials:'omit'});
@@ -26,7 +26,7 @@ const actions=()=>{
   const action=controls[state.page];return action?`<button class="primary-button" data-new="${action[0]}">+ ${action[1]}</button>`:'';
 };
 function totals(data){
-  return {spent:(data.expenses??[]).reduce((sum,x)=>sum+x.amountMinor,0),charged:data.charges.reduce((s,x)=>s+x.amountMinor,0),paid:data.payments.reduce((s,x)=>s+x.amountMinor,0),balance:data.units.reduce((s,x)=>s+(x.balanceMinor??0),0)};
+  return {spent:(data.expenses??[]).reduce((sum,x)=>sum+x.amountMinor,0),charged:data.charges.filter(x=>!x.reversed).reduce((s,x)=>s+x.amountMinor,0),paid:data.payments.filter(x=>!x.reversed).reduce((s,x)=>s+x.amountMinor,0),balance:data.units.reduce((s,x)=>s+(x.balanceMinor??0),0)};
 }
 function renderDashboard(data){
   const t=totals(data);
@@ -41,13 +41,13 @@ function renderCharges(data){
   if(data.role==='committee')return info('La información financiera está restringida para este rol.');
   const list=filtered(data.charges,['unit','concept','period']);
   if(!list.length)return info('No se han emitido cuotas.');
-  return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Periodo</th><th>Concepto</th><th>Importe</th><th>Fecha</th></tr></thead><tbody>${list.map(x=>`<tr><td>${h(x.unit)}</td><td>${h(x.period)}</td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${date(x.createdAt)}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Periodo</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${list.map(x=>`<tr class="${x.reversed?'live-void':''}"><td>${h(x.unit)}</td><td>${h(x.period)}</td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${x.reversed?`<span title="${h(x.reverseReason??'Anulado')}">Anulado</span>`:'Activo'}</td><td>${canWrite()&&!x.reversed?`<button class="live-reverse" data-reverse-type="charges" data-reverse-id="${h(x.id)}">Anular</button>`:'—'}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function renderPayments(data){
   if(data.role==='committee')return info('La información financiera está restringida para este rol.');
   const list=filtered(data.payments,['unit','reference','concept']);
   if(!list.length)return info('No se han registrado pagos.');
-  return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Referencia</th><th>Concepto</th><th>Importe</th><th>Registro</th></tr></thead><tbody>${list.map(x=>`<tr><td>${h(x.unit)}</td><td><strong>${h(x.reference)}</strong></td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${date(x.createdAt)}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Referencia</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${list.map(x=>`<tr class="${x.reversed?'live-void':''}"><td>${h(x.unit)}</td><td><strong>${h(x.reference)}</strong></td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${x.reversed?`<span title="${h(x.reverseReason??'Anulado')}">Anulado</span>`:'Activo'}</td><td>${canWrite()&&!x.reversed?`<button class="live-reverse" data-reverse-type="payments" data-reverse-id="${h(x.id)}">Anular</button>`:'—'}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function renderAnnouncements(data,small=false){
   const list=small?data.announcements.slice(0,4):filtered(data.announcements,['title','body']);
@@ -83,7 +83,7 @@ function providerOptions(){return (state.data.providers??[]).map(x=>`<option val
 function modalHtml(){
   const type=state.modal;
   if(!type)return '';
-  const config={
+  const config=type==='reverse' ? ['Anular movimiento',`<p>El registro original permanecerá visible y el saldo se recalculará. Esta acción no puede repetirse.</p><label>Motivo de anulación<textarea name="reason" maxlength="500" minlength="10" rows="4" required placeholder="Describe el error y su corrección"></textarea></label>`] : {
     unit:['Nueva unidad',`<label>Código<input name="code" maxlength="40" required placeholder="A-101"></label><label>Tipo<select name="kind"><option>Departamento</option><option>Casa</option><option>Local</option><option>Oficina</option></select></label><label>Ocupante (opcional)<input name="resident" maxlength="100"></label>`],
     charge:['Emitir cuota',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Gasto común"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label>`],
     payment:['Registrar pago manual',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Referencia única<input name="reference" maxlength="90" required placeholder="Transferencia-0001"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Abono de cuota"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label><p>No valida transferencias bancarias; registra solo el dato declarado por un administrador.</p>`],
@@ -92,7 +92,7 @@ function modalHtml(){
     expense:['Registrar gasto',`<label>Proveedor<select name="providerId" required>${providerOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="100.00"></label><p>Registra un gasto operativo; no equivale a contabilidad formal.</p>`],
     document:['Registrar metadatos de documento',`<label>Título<input name="title" maxlength="150" required></label><label>Categoría<input name="category" maxlength="60" required placeholder="Actas"></label><label>Visibilidad<select name="scope"><option value="community">Toda la comunidad</option><option value="committee">Administración y comité</option><option value="admin">Solo administración</option></select></label><p>No se carga ningún archivo; es solo un registro documental.</p>`],
   }[type];
-  return `<div class="modal-backdrop" data-close="1"></div><div class="modal-host"><section class="modal live-modal" role="dialog" aria-modal="true" aria-labelledby="live-modal-title"><h2 id="live-modal-title">${config[0]}</h2><form id="create-form" data-type="${type}">${config[1]}${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}<div class="modal-footer"><button type="button" class="secondary-button" data-close="1">Cancelar</button><button class="primary-button" type="submit" ${state.busy?'disabled':''}>${state.busy?'Guardando…':'Guardar'}</button></div></form></section></div>`;
+  return `<div class="modal-backdrop" data-close="1"></div><div class="modal-host"><section class="modal live-modal" role="dialog" aria-modal="true" aria-labelledby="live-modal-title"><h2 id="live-modal-title">${config[0]}</h2><form id="${type==='reverse'?'reverse-form':'create-form'}" data-type="${type}">${config[1]}${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}<div class="modal-footer"><button type="button" class="secondary-button" data-close="1">Cancelar</button><button class="primary-button" type="submit" ${state.busy?'disabled':''}>${state.busy?'Guardando…':'Guardar'}</button></div></form></section></div>`;
 }
 function render(){
   if(!state.token)return viewLogin();
@@ -135,11 +135,16 @@ async function submitCreate(form){
 }
 app.addEventListener('submit',async event=>{
   if(event.target.id==='login-form'){event.preventDefault();await login(event.target);return;}
-  if(event.target.id==='create-form'){event.preventDefault();await submitCreate(event.target);}
+  if(event.target.id==='create-form'){event.preventDefault();await submitCreate(event.target);return;}
+  if(event.target.id==='reverse-form'){event.preventDefault();const target=state.reverseTarget;const reason=String(new FormData(event.target).get('reason')??'').trim();const button=event.target.querySelector('button[type=submit]');if(button)button.disabled=true;
+    try{await request(`${base()}/${target.type}/${target.id}/reverse`,'POST',{reason});state.modal=null;state.reverseTarget=null;await refresh();}
+    catch(e){state.error=e.message;render();}return;}
 });
 app.addEventListener('click',async event=>{
   const page=event.target.closest('[data-page]')?.dataset.page;
   if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();return;}
+  const reversing=event.target.closest('[data-reverse-id]');
+  if(reversing){state.reverseTarget={type:reversing.dataset.reverseType,id:reversing.dataset.reverseId};state.modal='reverse';state.error='';render();document.querySelector('.live-modal textarea')?.focus();return;}
   const modal=event.target.closest('[data-new]')?.dataset.new;
   if(modal){state.modal=modal;state.error='';render();document.querySelector('.live-modal input, .live-modal select')?.focus();return;}
   if(event.target.closest('[data-close]')){state.modal=null;state.error='';render();return;}

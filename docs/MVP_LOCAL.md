@@ -1,4 +1,4 @@
-# Digi-Condominio · MVP local 0.3.0
+# Digi-Condominio · MVP local 0.4.0
 
 **Estado:** implementación local en fase de validación; **NO apto para producción**.
 
@@ -96,3 +96,7 @@ npm run import-units              # escribe de forma atómica
 ```
 
 Esta es una **herramienta local experimental**. No importar datos personales reales hasta validar permisos, jurisdicción, legalidad y procedimiento de migración. Nunca subir CSV con residentes a issues o commits.
+
+## Anulación auditable de cuotas y pagos (iteración posterior)
+
+El administrador puede **anular** una cuota o un pago erróneo aportando un motivo de 10 a 500 caracteres. La API guarda un reverso independiente, no elimina el movimiento original y solo admite un reverso por movimiento. Los saldos e indicadores excluyen movimientos anulados; la vista administrativa y el CSV muestran el estado y motivo del reverso. Los propietarios ven el estado anulado pero no el motivo administrativo. Los comprobantes bancarios, asientos contables formales y los reembolsos reales permanecen fuera de esta implementación.

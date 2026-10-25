@@ -12,8 +12,8 @@ export function report(store,userId,communityId,section){
   const d=store.overview(userId,communityId);
   const reports={
     units:{headers:['Código','Tipo','Ocupante','Saldo en centésimas UM'],data:d.units.map(x=>[x.code,x.kind,x.resident,x.balanceMinor])},
-    charges:{headers:['Unidad','Periodo','Concepto','Importe en centésimas UM','Registrado'],data:d.charges.map(x=>[x.unit,x.period,x.concept,x.amountMinor,x.createdAt])},
-    payments:{headers:['Unidad','Referencia','Concepto','Importe en centésimas UM','Registrado'],data:d.payments.map(x=>[x.unit,x.reference,x.concept,x.amountMinor,x.createdAt])},
+    charges:{headers:['Unidad','Periodo','Concepto','Importe en centésimas UM','Estado','Motivo anulación','Registrado'],data:d.charges.map(x=>[x.unit,x.period,x.concept,x.amountMinor,x.reversed?'Anulado':'Activo',x.reverseReason??'',x.createdAt])},
+    payments:{headers:['Unidad','Referencia','Concepto','Importe en centésimas UM','Estado','Motivo anulación','Registrado'],data:d.payments.map(x=>[x.unit,x.reference,x.concept,x.amountMinor,x.reversed?'Anulado':'Activo',x.reverseReason??'',x.createdAt])},
     providers:{headers:['Nombre','Rubro','Registrado'],data:d.providers.map(x=>[x.name,x.category,x.createdAt])},
     expenses:{headers:['Proveedor','Periodo','Concepto','Importe en centésimas UM','Registrado'],data:d.expenses.map(x=>[x.provider,x.period,x.concept,x.amountMinor,x.createdAt])}
   };

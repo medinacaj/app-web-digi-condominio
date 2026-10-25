@@ -55,6 +55,11 @@ export function createApp(store){
         if(pathname==='/api/session' && req.method==='GET')return send(res,200,{user});
         if(pathname==='/api/logout' && req.method==='POST'){store.logout(token);return send(res,200,{ok:true});}
         if(pathname==='/api/communities' && req.method==='GET')return send(res,200,{communities:store.communitiesFor(user.id)});
+        const reversalMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/(charges|payments)\/([a-zA-Z0-9-]{36})\/reverse$/.exec(pathname);
+        if(reversalMatch){
+          if(req.method!=='POST')throw new Problem(405,'Método no permitido');
+          const data=await body(req);return send(res,201,store.reverseEntry(user.id,reversalMatch[1],reversalMatch[2]==='charges'?'charge':'payment',reversalMatch[3],data.reason));
+        }
         const exportMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/reports\/(units|charges|payments|providers|expenses)\.csv$/.exec(pathname);
         if(exportMatch && req.method==='GET'){
           const output=report(store,user.id,exportMatch[1],exportMatch[2]);
