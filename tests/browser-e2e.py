@@ -1,0 +1,105 @@
+"""Browser/UI against the real Node API via an explicit testing bridge.
+
+Chromium in this hosted environment blocks localhost navigation by administrator policy.
+The page executes real source CSS/JS, while Python forwards fetch operations to the local
+Node server. This is NOT evidence of conventional end-to-end browser networking.
+"""
+import os
+import subprocess
+import tempfile
+import socket
+import time
+import urllib.request
+import urllib.error
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+
+ROOT = Path(__file__).resolve().parents[1]
+PORT = 43119
+DIRECT = os.getenv('DIGI_E2E_MODE') == 'direct'
+EMAIL='admin@example.test'; PASSWORD='VeryStrongPassword#2026'
+with tempfile.TemporaryDirectory() as td:
+    env={**os.environ,'DIGI_DB_PATH':f'{td}/test.sqlite','DIGI_ADMIN_EMAIL':EMAIL,'DIGI_ADMIN_PASSWORD':PASSWORD,'DIGI_COMMUNITY_NAME':'Comunidad demostración','PORT':str(PORT)}
+    bootstrap=subprocess.run(['node','server/bootstrap.js'],cwd=ROOT,env=env,capture_output=True,text=True)
+    assert bootstrap.returncode==0,bootstrap.stderr
+    server=subprocess.Popen(['node','server/start.js'],cwd=ROOT,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+    try:
+        for n in range(80):
+            try:
+                with socket.create_connection(('127.0.0.1',PORT),.1):break
+            except OSError:time.sleep(.06)
+        else:raise RuntimeError('Node no inició')
+        with sync_playwright() as pw:
+            browser=pw.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage']) if DIRECT else pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
+            page=browser.new_page(viewport={'width':1440,'height':900},device_scale_factor=1)
+            errors=[]
+            page.on('pageerror',lambda err:errors.append(str(err)))
+            def proxy(data):
+                requrl='http://127.0.0.1:'+str(PORT)+data['path']
+                headers=data.get('headers') or {}
+                body=data.get('body')
+                request=urllib.request.Request(requrl, data=(body.encode() if isinstance(body,str) else None),method=data.get('method','GET'),headers=headers)
+                try:
+                    with urllib.request.urlopen(request,timeout=12) as resp:
+                        return {'status':resp.status,'body':resp.read().decode(),'type':resp.headers.get('content-type','application/json')}
+                except urllib.error.HTTPError as err:
+                    return {'status':err.code,'body':err.read().decode(),'type':'application/json'}
+            if not DIRECT:
+                page.expose_function('testProxy',proxy)
+            css=(ROOT/'src/styles.css').read_text()+'\n'+(ROOT/'src/connected.css').read_text()
+            js=(ROOT/'src/connected.js').read_text()
+            assert js.startswith("import { escapeHtml as h } from './domain.js';")
+            js=js.replace("import { escapeHtml as h } from './domain.js';", '''const h=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));''',1)
+            pre='''window.fetch=async function(path,options={}){
+                 const result=await window.testProxy({path,method:options.method||'GET',headers:options.headers||{},body:options.body});
+                 return new Response(result.body,{status:result.status,headers:{'content-type':result.type}});
+                 };'''
+            html='<!doctype html><html lang="es"><head><meta charset="utf-8"><style>'+css+'</style></head><body><div id="app"></div><script>'+pre+'\n'+js+'</script></body></html>'
+            if DIRECT:
+                response=page.goto('http://127.0.0.1:'+str(PORT)+'/',wait_until='domcontentloaded',timeout=15000)
+                assert response and response.status==200
+            else:
+                page.set_content(html,wait_until='domcontentloaded')
+            page.get_by_label('Correo electrónico').fill(EMAIL)
+            page.get_by_label('Contraseña').fill(PASSWORD)
+            page.get_by_role('button',name='Ingresar al espacio privado').click()
+            page.get_by_role('heading',name='Resumen').wait_for(timeout=9000)
+            page.get_by_role('button',name='Incidencias').click()
+            page.get_by_role('heading',name='Incidencias').wait_for()
+            page.get_by_role('button',name='Reportar incidencia').click()
+            page.get_by_label('Título').fill('Alarma de ascensor fuera de servicio')
+            page.get_by_label('Descripción').fill('El ascensor no responde al pulsador del primer piso.')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_role('heading',name='Alarma de ascensor fuera de servicio').wait_for(timeout=9000)
+            page.get_by_role('button',name='Comentar').click()
+            page.get_by_role('textbox',name='Comentario').fill('Se coordinó revisión con mantenimiento.')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Se coordinó revisión con mantenimiento.').wait_for(timeout=8000)
+            page.get_by_role('button',name='Cambiar estado').click()
+            page.get_by_label('Estado').select_option('in_progress')
+            page.get_by_label('Justificación').fill('Se asignó revisión al proveedor de ascensores.')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Se asignó revisión al proveedor de ascensores.').wait_for(timeout=9000)
+            # escaping XSS while preserving text
+            page.get_by_role('button',name='Reportar incidencia').click()
+            page.get_by_label('Título').fill('<img src=x onerror=alert(1)>')
+            page.get_by_label('Descripción').fill('Texto de prueba para HTML escapado')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_role('heading',name='<img src=x onerror=alert(1)>').wait_for(timeout=9000)
+            assert page.locator('.incident-card img').count()==0
+            for width in [360,390,768,1440]:
+                page.set_viewport_size({'width':width,'height':850})
+                page.wait_for_timeout(80)
+                dims=page.evaluate('({scroll:document.documentElement.scrollWidth, viewport:window.innerWidth})')
+                assert dims['scroll']<=dims['viewport']+1,(width,dims)
+                print('layout',width,dims)
+            assert not errors,errors
+            output=os.getenv('DIGI_E2E_SCREENSHOT_DIR')
+            if output:
+                Path(output).mkdir(parents=True,exist_ok=True)
+                page.set_viewport_size({'width':1440,'height':900});page.screenshot(path=str(Path(output)/'digi-incidencias-desktop.png'),full_page=True)
+                page.set_viewport_size({'width':390,'height':844});page.wait_for_timeout(380);page.screenshot(path=str(Path(output)/'digi-incidencias-mobile.png'),full_page=True)
+            print(('DIRECT' if DIRECT else 'BRIDGE')+' BROWSER + REAL NODE API OK: login, report, comment, status, XSS, responsive, 0 JS errors')
+            browser.close()
+    finally:
+        server.terminate();server.wait(timeout=5)

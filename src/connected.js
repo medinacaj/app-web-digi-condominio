@@ -2,9 +2,9 @@ import { escapeHtml as h } from './domain.js';
 const app=document.getElementById('app');
 const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
-const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥'};
-const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null};
+const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑'};
+const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias'};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null};
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
   const response=await fetch(path,{method,cache:'no-store',headers:{...(state.token?{Authorization:`Bearer ${state.token}`} : {}),...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,credentials:'omit'});
@@ -21,8 +21,8 @@ const canWrite=()=>state.data?.role==='admin';
 const filtered=(items,fields)=>items.filter(x=>fields.some(f=>String(x[f]??'').toLocaleLowerCase('es').includes(state.query.toLocaleLowerCase('es'))));
 const heading=()=>names[state.page];
 const actions=()=>{
-  if(!canWrite())return '';
-  const controls={units:['unit','Añadir unidad'],charges:['charge','Emitir cuota'],payments:['payment','Registrar pago'],announcements:['announcement','Nuevo comunicado'],documents:['document','Registrar documento'],providers:['provider','Nuevo proveedor'],expenses:['expense','Registrar gasto']};
+  if(!canWrite() && state.page!=='incidents')return '';
+  const controls={units:['unit','Añadir unidad'],charges:['charge','Emitir cuota'],payments:['payment','Registrar pago'],announcements:['announcement','Nuevo comunicado'],documents:['document','Registrar documento'],providers:['provider','Nuevo proveedor'],expenses:['expense','Registrar gasto'],incidents:['incident','Reportar incidencia']};
   const action=controls[state.page];return action?`<button class="primary-button" data-new="${action[0]}">+ ${action[1]}</button>`:'';
 };
 function totals(data){
@@ -30,7 +30,7 @@ function totals(data){
 }
 function renderDashboard(data){
   const t=totals(data);
-  return `<div class="live-kpis"><article><span>Unidades visibles</span><strong>${data.units.length}</strong><small>Acceso definido por tu rol</small></article><article><span>Cuotas emitidas</span><strong>${data.role==='committee'?'Restringido':money(t.charged)}</strong><small>Registros inmutables</small></article><article><span>Pagos registrados</span><strong>${data.role==='committee'?'Restringido':money(t.paid)}</strong><small>Registro manual</small></article><article><span>Saldo neto</span><strong>${data.role==='committee'?'Restringido':money(t.balance)}</strong><small>Cuotas menos pagos</small></article>${data.role==='admin'?`<article><span>Gastos registrados</span><strong>${money(t.spent)}</strong><small>Libro de gastos</small></article>`:''}</div><div class="live-columns"><section class="live-card"><div class="live-card-title"><h2>Unidades</h2><button data-page="units">Ver todas</button></div>${renderUnits(data,true)}</section><section class="live-card"><div class="live-card-title"><h2>Comunicados recientes</h2><button data-page="announcements">Ver todos</button></div>${renderAnnouncements(data,true)}</section></div>`;
+  return `<div class="live-kpis"><article><span>Unidades visibles</span><strong>${data.units.length}</strong><small>Acceso definido por tu rol</small></article><article><span>Cuotas emitidas</span><strong>${data.role==='committee'?'Restringido':money(t.charged)}</strong><small>Registros inmutables</small></article><article><span>Pagos registrados</span><strong>${data.role==='committee'?'Restringido':money(t.paid)}</strong><small>Registro manual</small></article><article><span>Saldo neto</span><strong>${data.role==='committee'?'Restringido':money(t.balance)}</strong><small>Cuotas menos pagos</small></article>${data.role==='admin'?`<article><span>Gastos registrados</span><strong>${money(t.spent)}</strong><small>Libro de gastos</small></article>`:''}<article><span>Incidencias abiertas</span><strong>${(data.incidents??[]).filter(x=>!['closed','resolved'].includes(x.status)).length}</strong><small>Reportes visibles por tu rol</small></article></div><div class="live-columns"><section class="live-card"><div class="live-card-title"><h2>Unidades</h2><button data-page="units">Ver todas</button></div>${renderUnits(data,true)}</section><section class="live-card"><div class="live-card-title"><h2>Comunicados recientes</h2><button data-page="announcements">Ver todos</button></div>${renderAnnouncements(data,true)}</section></div>`;
 }
 function renderUnits(data,small=false){
   const list=small?data.units.slice(0,5):filtered(data.units,['code','kind','resident']);
@@ -69,13 +69,22 @@ function renderExpenses(data){
   if(!list.length)return info('No hay gastos registrados.');
   return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Proveedor</th><th>Periodo</th><th>Concepto</th><th>Importe</th><th>Registrado</th></tr></thead><tbody>${list.map(x=>`<tr><td><strong>${h(x.provider)}</strong></td><td>${h(x.period)}</td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${date(x.createdAt)}</td></tr>`).join('')}</tbody></table></div>`;
 }
+
+const incidentLabels={open:'Abierta',in_progress:'En atención',resolved:'Resuelta',closed:'Cerrada'};
+const priorityLabels={low:'Baja',normal:'Normal',high:'Alta',urgent:'Urgente'};
+const categoryLabels={maintenance:'Mantenimiento',security:'Seguridad',cleaning:'Limpieza',noise:'Ruidos',other:'Otros'};
+function renderIncidents(data){
+  const list=filtered(data.incidents??[],['title','detail','category','status','unit']);
+  if(!list.length)return info('No hay incidencias visibles. Usa «Reportar incidencia» para registrar una.');
+  return `<div class="incident-list">${list.map(x=>`<article class="incident-card" data-inc-card="${h(x.id)}"><div class="incident-top"><span class="incident-priority ${h(x.priority)}">${h(priorityLabels[x.priority]??x.priority)}</span><span class="incident-state">${h(incidentLabels[x.status]??x.status)}</span></div><h2>${h(x.title)}</h2><div class="incident-meta">${h(categoryLabels[x.category]??x.category)} · ${h(x.unit||'Área común')} · ${date(x.createdAt)}</div><p>${h(x.detail)}</p><div class="incident-history"><strong>Seguimiento (${x.updates.length})</strong>${x.updates.map(u=>`<div class="incident-entry"><b>${h(u.author)}</b> <small>${date(u.createdAt)}</small><p>${h(u.note)}</p></div>`).join('')}</div><div class="incident-actions"><button class="secondary-button" data-incident-comment="${h(x.id)}">Comentar</button>${canWrite()?`<button class="primary-button" data-incident-status="${h(x.id)}">Cambiar estado</button>`:''}</div></article>`).join('')}</div>`;
+}
 function renderAudit(data){
   if(data.role!=='admin')return info('Registro reservado a la administración.');
   if(!data.audit.length)return info('Aún no hay movimientos auditados.');
   return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Acción</th><th>ID del elemento</th><th>Registro</th></tr></thead><tbody>${data.audit.map(x=>`<tr><td>${h(x.action)}</td><td><code>${h(x.entityId)}</code></td><td>${date(x.createdAt)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function screenContent(data){
-  const content={dashboard:renderDashboard,units:renderUnits,charges:renderCharges,payments:renderPayments,announcements:renderAnnouncements,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses};
+  const content={dashboard:renderDashboard,units:renderUnits,charges:renderCharges,payments:renderPayments,announcements:renderAnnouncements,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses,incidents:renderIncidents};
   return (content[state.page]??renderDashboard)(data);
 }
 function selectOptions(){return state.data.units.map(x=>`<option value="${h(x.id)}">${h(x.code)}</option>`).join('');}
@@ -90,6 +99,9 @@ function modalHtml(){
     announcement:['Nuevo comunicado',`<label>Título<input name="title" maxlength="90" required></label><label>Mensaje<textarea name="body" maxlength="2000" rows="5" required></textarea></label>`],
     provider:['Nuevo proveedor',`<label>Nombre<input name="name" maxlength="130" required></label><label>Rubro<input name="category" maxlength="70" required></label>`],
     expense:['Registrar gasto',`<label>Proveedor<select name="providerId" required>${providerOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="100.00"></label><p>Registra un gasto operativo; no equivale a contabilidad formal.</p>`],
+    incident:['Reportar incidencia',`<label>Unidad o área<select name="unitId"><option value="">Área común</option>${selectOptions()}</select></label><label>Categoría<select name="category"><option value="maintenance">Mantenimiento</option><option value="security">Seguridad</option><option value="cleaning">Limpieza</option><option value="noise">Ruidos</option><option value="other">Otros</option></select></label><label>Prioridad<select name="priority"><option value="normal">Normal</option><option value="low">Baja</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></label><label>Título<input name="title" maxlength="120" required></label><label>Descripción<textarea name="detail" maxlength="2000" rows="5" required></textarea></label><p>El seguimiento queda registrado. No se admiten fotografías ni archivos en esta versión.</p>`],
+    'incident-comment':['Añadir comentario',`<label>Comentario<textarea name="note" maxlength="1200" rows="5" required></textarea></label>`],
+    'incident-status':['Actualizar incidencia',`<label>Estado<select name="status"><option value="in_progress">En atención</option><option value="resolved">Resuelta</option><option value="closed">Cerrada</option><option value="open">Abierta</option></select></label><label>Justificación<textarea name="note" maxlength="500" minlength="8" rows="4" required></textarea></label>`],
     document:['Registrar metadatos de documento',`<label>Título<input name="title" maxlength="150" required></label><label>Categoría<input name="category" maxlength="60" required placeholder="Actas"></label><label>Visibilidad<select name="scope"><option value="community">Toda la comunidad</option><option value="committee">Administración y comité</option><option value="admin">Solo administración</option></select></label><p>No se carga ningún archivo; es solo un registro documental.</p>`],
   }[type];
   return `<div class="modal-backdrop" data-close="1"></div><div class="modal-host"><section class="modal live-modal" role="dialog" aria-modal="true" aria-labelledby="live-modal-title"><h2 id="live-modal-title">${config[0]}</h2><form id="${type==='reverse'?'reverse-form':'create-form'}" data-type="${type}">${config[1]}${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}<div class="modal-footer"><button type="button" class="secondary-button" data-close="1">Cancelar</button><button class="primary-button" type="submit" ${state.busy?'disabled':''}>${state.busy?'Guardando…':'Guardar'}</button></div></form></section></div>`;
@@ -123,7 +135,7 @@ function amountMinor(value){
 async function submitCreate(form){
   const type=form.dataset.type;
   const data=Object.fromEntries(new FormData(form));
-  const routes={unit:'units',charge:'charges',payment:'payments',announcement:'announcements',document:'documents',provider:'providers',expense:'expenses'};
+  const routes={incident:'incidents',unit:'units',charge:'charges',payment:'payments',announcement:'announcements',document:'documents',provider:'providers',expense:'expenses'};
   if(!routes[type])return;
   try{
     if(type==='charge'||type==='payment'||type==='expense'){data.amountMinor=amountMinor(data.amount);delete data.amount;}
@@ -135,6 +147,17 @@ async function submitCreate(form){
 }
 app.addEventListener('submit',async event=>{
   if(event.target.id==='login-form'){event.preventDefault();await login(event.target);return;}
+  if(event.target.id==='create-form' && ['incident-comment','incident-status'].includes(event.target.dataset.type)){
+    event.preventDefault();if(state.busy)return;
+    const kind=event.target.dataset.type,target=state.incidentTarget,data=Object.fromEntries(new FormData(event.target));
+    state.busy=true;event.target.querySelector('button[type=submit]').disabled=true;
+    try{
+      if(kind==='incident-comment')await request(`${base()}/incidents/${target}/comments`,'POST',data);
+      else await request(`${base()}/incidents/${target}/status`,'PATCH',data);
+      state.modal=null;state.incidentTarget=null;await refresh();
+    }catch(e){state.error=e.message;render();}finally{state.busy=false;}
+    return;
+  }
   if(event.target.id==='create-form'){event.preventDefault();await submitCreate(event.target);return;}
   if(event.target.id==='reverse-form'){event.preventDefault();const target=state.reverseTarget;const reason=String(new FormData(event.target).get('reason')??'').trim();const button=event.target.querySelector('button[type=submit]');if(button)button.disabled=true;
     try{await request(`${base()}/${target.type}/${target.id}/reverse`,'POST',{reason});state.modal=null;state.reverseTarget=null;await refresh();}
@@ -143,6 +166,10 @@ app.addEventListener('submit',async event=>{
 app.addEventListener('click',async event=>{
   const page=event.target.closest('[data-page]')?.dataset.page;
   if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();return;}
+  const replying=event.target.closest('[data-incident-comment]');
+  if(replying){state.incidentTarget=replying.dataset.incidentComment;state.modal='incident-comment';state.error='';render();document.querySelector('.live-modal textarea')?.focus();return;}
+  const statusButton=event.target.closest('[data-incident-status]');
+  if(statusButton){state.incidentTarget=statusButton.dataset.incidentStatus;state.modal='incident-status';state.error='';render();document.querySelector('.live-modal select')?.focus();return;}
   const reversing=event.target.closest('[data-reverse-id]');
   if(reversing){state.reverseTarget={type:reversing.dataset.reverseType,id:reversing.dataset.reverseId};state.modal='reverse';state.error='';render();document.querySelector('.live-modal textarea')?.focus();return;}
   const modal=event.target.closest('[data-new]')?.dataset.new;

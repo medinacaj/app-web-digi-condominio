@@ -55,6 +55,19 @@ export function createApp(store){
         if(pathname==='/api/session' && req.method==='GET')return send(res,200,{user});
         if(pathname==='/api/logout' && req.method==='POST'){store.logout(token);return send(res,200,{ok:true});}
         if(pathname==='/api/communities' && req.method==='GET')return send(res,200,{communities:store.communitiesFor(user.id)});
+        const incidentMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/incidents\/([a-zA-Z0-9-]{36})\/(comments|status)$/.exec(pathname);
+        if(incidentMatch){
+          const [,communityId,incidentId,action]=incidentMatch;
+          if(action==='comments' && req.method==='POST'){
+            const data=await body(req);
+            return send(res,201,store.commentIncident(user.id,communityId,incidentId,data.note));
+          }
+          if(action==='status' && req.method==='PATCH'){
+            const data=await body(req);
+            return send(res,200,store.changeIncidentStatus(user.id,communityId,incidentId,data.status,data.note));
+          }
+          throw new Problem(405,'Método no permitido');
+        }
         const reversalMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/(charges|payments)\/([a-zA-Z0-9-]{36})\/reverse$/.exec(pathname);
         if(reversalMatch){
           if(req.method!=='POST')throw new Problem(405,'Método no permitido');
@@ -66,13 +79,14 @@ export function createApp(store){
           res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':`attachment; filename="digi-${exportMatch[2]}.csv"`,'Cache-Control':'no-store'});
           return res.end(output);
         }
-        const match=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/(overview|units|charges|payments|announcements|documents|providers|expenses)$/.exec(pathname);
+        const match=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/(overview|units|charges|payments|announcements|documents|providers|expenses|incidents)$/.exec(pathname);
         if(!match)throw new Problem(404,'Ruta no disponible');
         const [, communityId,resource]=match;
         if(req.method==='GET' && resource==='overview')return send(res,200,store.overview(user.id,communityId));
+        if(req.method==='GET' && resource==='incidents')return send(res,200,{incidents:store.incidentsFor(user.id,communityId)});
         if(req.method!=='POST' || resource==='overview')throw new Problem(405,'Método no permitido');
         const input=await body(req);
-        const act={units:'addUnit',charges:'addCharge',payments:'addPayment',announcements:'addAnnouncement',documents:'addDocument',providers:'addProvider',expenses:'addExpense'}[resource];
+        const act={units:'addUnit',charges:'addCharge',payments:'addPayment',announcements:'addAnnouncement',documents:'addDocument',providers:'addProvider',expenses:'addExpense',incidents:'addIncident'}[resource];
         return send(res,201,store[act](user.id,communityId,input));
       }
       if(req.method==='GET' && assets.has(pathname)){

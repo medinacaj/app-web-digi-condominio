@@ -100,6 +100,25 @@ export class Store {
         amount_minor INTEGER NOT NULL CHECK(amount_minor>0), created_at TEXT NOT NULL,
         FOREIGN KEY(provider_id,community_id) REFERENCES providers(id,community_id)
       );
+      CREATE TABLE IF NOT EXISTS incidents (
+        id TEXT PRIMARY KEY, community_id TEXT NOT NULL REFERENCES communities(id),
+        unit_id TEXT, created_by TEXT NOT NULL REFERENCES users(id),
+        category TEXT NOT NULL, title TEXT NOT NULL, detail TEXT NOT NULL,
+        priority TEXT NOT NULL CHECK(priority IN ('low','normal','high','urgent')),
+        status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','resolved','closed')),
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        UNIQUE(id,community_id),
+        FOREIGN KEY(unit_id,community_id) REFERENCES units(id,community_id)
+      );
+      CREATE TABLE IF NOT EXISTS incident_updates (
+        id TEXT PRIMARY KEY, community_id TEXT NOT NULL, incident_id TEXT NOT NULL,
+        actor_user_id TEXT NOT NULL REFERENCES users(id),
+        kind TEXT NOT NULL CHECK(kind IN ('created','comment','status')),
+        note TEXT NOT NULL, status TEXT, created_at TEXT NOT NULL,
+        FOREIGN KEY(incident_id,community_id) REFERENCES incidents(id,community_id)
+      );
+      CREATE INDEX IF NOT EXISTS ix_incidents_community ON incidents(community_id,created_at);
+      CREATE INDEX IF NOT EXISTS ix_incident_updates ON incident_updates(incident_id,created_at);
       CREATE TABLE IF NOT EXISTS sessions (
         token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at TEXT NOT NULL
       );
@@ -207,7 +226,8 @@ export class Store {
     const expenses = role === 'admin' ? rows(this.db.prepare(`SELECT e.id,e.period,e.concept,e.amount_minor amountMinor,e.created_at createdAt,p.name provider
       FROM expenses e JOIN providers p ON p.id=e.provider_id WHERE e.community_id=? ORDER BY e.created_at DESC`), communityId) : [];
     const audit = role === 'admin' ? rows(this.db.prepare(`SELECT id,action,entity_id entityId,created_at createdAt FROM audit_events WHERE community_id=? ORDER BY created_at DESC LIMIT 40`), communityId) : [];
-    return { role, communityId, units, charges, payments, announcements, documents, providers, expenses, audit };
+    const incidents = this.incidentsFor(userId,communityId);
+    return { role, communityId, units, charges, payments, announcements, documents, providers, expenses, incidents, audit };
   }
   unitIsIn(communityId, unitId) {
     return Boolean(this.db.prepare('SELECT id FROM units WHERE community_id=? AND id=?').get(communityId, unitId));
@@ -292,4 +312,84 @@ export class Store {
 
     return {id};
   }
+
+  incidentAccessible(userId,communityId,incidentId) {
+    const role=this.member(userId,communityId);
+    const row=this.db.prepare(`SELECT i.id,i.created_by,i.unit_id,u.owner_user_id
+      FROM incidents i LEFT JOIN units u ON u.id=i.unit_id AND u.community_id=i.community_id
+      WHERE i.id=? AND i.community_id=?`).get(incidentId,communityId);
+    if(!row || (role==='owner' && row.created_by!==userId && row.owner_user_id!==userId))
+      throw new Problem(404,'Incidencia no disponible');
+    return {row,role};
+  }
+  incidentsFor(userId,communityId) {
+    const role=this.member(userId,communityId);
+    const where=role==='owner' ? ' AND (i.created_by=? OR u.owner_user_id=?)' : '';
+    const params=role==='owner' ? [communityId,userId,userId] : [communityId];
+    const incidents=rows(this.db.prepare(`SELECT i.id,i.unit_id unitId,u.code unit,
+      i.category,i.title,i.detail,i.priority,i.status,i.created_at createdAt,i.updated_at updatedAt,
+      i.created_by createdBy
+      FROM incidents i LEFT JOIN units u ON u.id=i.unit_id AND u.community_id=i.community_id
+      WHERE i.community_id=?${where} ORDER BY i.updated_at DESC LIMIT 100`),...params);
+    for(const item of incidents){
+      item.updates=rows(this.db.prepare(`SELECT x.id,x.kind,x.note,x.status,x.created_at createdAt,
+        a.display_name author FROM incident_updates x JOIN users a ON a.id=x.actor_user_id
+        WHERE x.incident_id=? AND x.community_id=? ORDER BY x.created_at ASC,x.rowid ASC LIMIT 100`),item.id,communityId);
+    }
+    return incidents;
+  }
+  addIncident(userId,communityId,data){
+    const role=this.member(userId,communityId);
+    const title=requireText(data.title,'Título',120),detail=requireText(data.detail,'Descripción',2000);
+    const category=requireText(data.category,'Categoría',50);
+    if(!['maintenance','security','cleaning','noise','other'].includes(category))throw new Problem(400,'Categoría inválida');
+    const priority=data.priority??'normal';
+    if(!['low','normal','high','urgent'].includes(priority))throw new Problem(400,'Prioridad inválida');
+    const unitId=data.unitId ? requireText(data.unitId,'Unidad',60) : null;
+    if(unitId){
+      const row=this.db.prepare('SELECT owner_user_id FROM units WHERE id=? AND community_id=?').get(unitId,communityId);
+      if(!row)throw new Problem(404,'Unidad no disponible');
+      if(role==='owner' && row.owner_user_id!==userId)throw new Problem(404,'Unidad no disponible');
+      if(role==='committee')throw new Problem(403,'El comité solo puede reportar áreas comunes');
+    }
+    const id=randomUUID(), now=dateNow();
+    this.writeAudited(userId,communityId,'incident.created',id,()=>{
+      this.db.prepare('INSERT INTO incidents VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+        .run(id,communityId,unitId,userId,category,title,detail,priority,'open',now,now);
+      this.db.prepare('INSERT INTO incident_updates VALUES (?,?,?,?,?,?,?,?)')
+        .run(randomUUID(),communityId,id,userId,'created','Incidencia registrada','open',now);
+    });
+    return {id};
+  }
+  commentIncident(userId,communityId,incidentId,note){
+    this.incidentAccessible(userId,communityId,incidentId);
+    note=requireText(note,'Comentario',1200);
+    const id=randomUUID(),now=dateNow();
+    this.writeAudited(userId,communityId,'incident.commented',incidentId,()=>{
+      this.db.prepare('INSERT INTO incident_updates VALUES (?,?,?,?,?,?,?,?)')
+        .run(id,communityId,incidentId,userId,'comment',note,null,now);
+      this.db.prepare('UPDATE incidents SET updated_at=? WHERE id=? AND community_id=?')
+        .run(now,incidentId,communityId);
+    });
+    return {id};
+  }
+  changeIncidentStatus(userId,communityId,incidentId,status,note){
+    this.requireAdmin(userId,communityId);
+    const {row}=this.incidentAccessible(userId,communityId,incidentId);
+    if(!['open','in_progress','resolved','closed'].includes(status))throw new Problem(400,'Estado inválido');
+    note=requireText(note,'Explicación',500);
+    if(note.length<8)throw new Problem(400,'Se requiere una explicación de al menos 8 caracteres');
+    const previous=this.db.prepare('SELECT status FROM incidents WHERE id=? AND community_id=?')
+      .get(row.id,communityId).status;
+    if(previous===status)throw new Problem(409,'La incidencia ya tiene este estado');
+    const id=randomUUID(),now=dateNow();
+    this.writeAudited(userId,communityId,'incident.status_changed',incidentId,()=>{
+      this.db.prepare('UPDATE incidents SET status=?,updated_at=? WHERE id=? AND community_id=?')
+        .run(status,now,incidentId,communityId);
+      this.db.prepare('INSERT INTO incident_updates VALUES (?,?,?,?,?,?,?,?)')
+        .run(id,communityId,incidentId,userId,'status',note,status,now);
+    });
+    return {id};
+  }
+
 }
