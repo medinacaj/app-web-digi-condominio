@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "project": "app-web-digi-condominio",
+  "reference_date": "2026-10-25",
+  "official_repository": "medinacaj/app-web-digi-condominio",
+  "baseline_main_sha": "3dfb07c76fcdbf52c2c0938a238255f36174db4e",
+  "inventory_scope": "documentación inicial propuesta en rama de trabajo, no implica merge",
+  "baseline": [
+    {
+      "path": "README.md",
+      "status": "observado_en_main_antes_de_la_propuesta",
+      "size_bytes": 25,
+      "sha_blob": "5c135f1f399fac5e1c33029feccd9c446b38b43a"
+    }
+  ],
+  "proposed_paths": [
+    "README.md",
+    "README_INICIAR_AQUI.md",
+    "CONTEXTO_MAESTRO.md",
+    "ESTADO_ACTUAL.md",
+    "DECISIONES_Y_CAMBIOS.md",
+    "docs/AUDITORIA_INICIAL.md",
+    "docs/BACKLOG_MVP.md",
+    "SECURITY.md",
+    ".gitignore",
+    "PROMPT_REANUDACION.md",
+    "INFORME_TRANSFERENCIA.md",
+    "INVENTARIO_ARCHIVOS.json"
+  ],
+  "app_source_files": [],
+  "tests": [],
+  "workflows": [],
+  "production_deployments": "no_verificado",
+  "source_sha256": "no_calculado",
+  "imported_private_source_pdf": false,
+  "notes": "No tratar rutas propuestas como presentes en main antes de integrar el PR. Para inventario vigente volver a consultar la API GitHub."
+}
