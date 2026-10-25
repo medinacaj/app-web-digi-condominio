@@ -62,3 +62,9 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - Se mantuvo la restricción a acceso local `127.0.0.1`, sin servicios externos, permisos reales, ni publicación. El sistema continúa como MVP experimental, no liberación productiva.
 - Al 25-10-2026 `npm run check` pasó **23 de 23 tests**. No se certifica seguridad con ello.
 - El PR #10 es dependiente del #9 y del #1. Las decisiones de país, cumplimiento legal, credenciales productivas, infraestructura y marca permanecen pendientes.
+
+## 2026-10-25 — Anulación auditada de movimientos (v0.4.0)
+
+- Se evita corregir importes eliminando registros: las anulaciones son entradas independientes por tipo y movimiento, únicas por comunidad, con motivo y usuario responsable.
+- Saldos y totales consideran solo movimientos activos. La visibilidad del motivo está restringida a administradores, aunque propietarios ven estado de anulación.
+- 24/24 pruebas locales correctas y CI del código v0.4.0 confirmado verde. Función implementada en PR #10, no necesariamente integrada a `main` hasta merge.
