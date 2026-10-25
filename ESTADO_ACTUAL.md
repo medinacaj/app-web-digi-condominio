@@ -54,3 +54,13 @@
 3. Resolver alcance y país con issues [#2](https://github.com/medinacaj/app-web-digi-condominio/issues/2), [#3](https://github.com/medinacaj/app-web-digi-condominio/issues/3), [#4](https://github.com/medinacaj/app-web-digi-condominio/issues/4), [#5](https://github.com/medinacaj/app-web-digi-condominio/issues/5).
 4. Planificar modelo de datos estable, pruebas E2E reales, migraciones, restauración cifrada, recuperación de cuentas y documentación legal. No iniciar despliegue público sin evaluación y autorización expresa.
 5. Mantener un issue y PR por cambio; registrar exactamente el código/probar/CI de cada avance.
+
+## 2026-10-25 — Iteración v0.5.0 (PR #17; estado sujeto a merge)
+
+- Se agregó al backend SQLite un módulo `incidents` / `incident_updates` con reportes por unidad o área común, categorías/prioridades, historial de comentarios y estados. Operaciones + auditoría en una misma transacción.
+- La **app web** incorpora navegación «Incidencias», formulario de reporte, comentarios, cambio de estado para administración y contador de incidencias abiertas.
+- Permisos: admin gestiona comunidad, comité comenta todos los reportes y reporta áreas comunes, propietario solo ve reportes propios/de unidades asignadas. Se niega acceso cruzado por comunidad y a unidades ajenas.
+- Pruebas **locales** verificadas: `npm run check` 32/32, 3 tests nuevos; Playwright ejecutó UI real con backend Node real a través de puente de test Python por restricción de red de Chromium en este entorno. Validó login, creación, comentario, estado, escape XSS, sin errores JS y 360/390/768/1440 px sin overflow.
+- Primer CI de navegador del PR: fallo de infraestructura con Ubuntu 26.04 no soportado por Playwright 1.56.0, job de sintaxis/Node pasó. Se fijó runner `ubuntu-24.04` en commit posterior, pendiente de éxito remoto; no declarar verde hasta confirmarlo.
+- PR: https://github.com/medinacaj/app-web-digi-condominio/pull/17. Issue: https://github.com/medinacaj/app-web-digi-condominio/issues/16.
+- **Pendientes**: fotografías/adjuntos, avisos por correo, SLA, asignación de responsable, paginación, retención legal; E2E directo y release aún no acreditados.

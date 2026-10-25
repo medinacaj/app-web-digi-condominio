@@ -24,3 +24,7 @@ Con Node 22.16+, `npm run check` ejecuta sintaxis y pruebas; última comprobaci�
 - Distinguir implementación, tests locales, CI, aprobación legal y publicación.
 - No declarar país, marca o modelo contable aprobados mientras los issues de definición sigan abiertos.
 - En cada PR actualizar pruebas, documentación, riesgos y decisión de integración.
+
+## Rama de incidencias v0.5.0
+
+Inspeccionar [PR #17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) contra `main` y [issue #16](https://github.com/medinacaj/app-web-digi-condominio/issues/16). Leer `docs/INCIDENCIAS.md`; pruebas `npm run check` (32 casos locales) y `python3 tests/browser-e2e.py`. La prueba local de navegador usa un puente por política de acceso a localhost; el modo directo en GitHub CI se activa con `DIGI_E2E_MODE=direct`. Solo declarar éxito tras revisar el job remoto y el merge.

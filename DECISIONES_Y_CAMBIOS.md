@@ -77,3 +77,11 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - Se vinculan altas financieras, documentales y reversos con el evento de auditoría usando `SAVEPOINT` SQLite para permitir importaciones por lotes y rollback completo; nueva prueba simula fallos de auditoría y confirma ausencia de datos huérfanos.
 - Corrección v0.4.1 comprobada localmente: **29/29 tests**. No asumir integración hasta comprobar último PR/CI.
 - Proyecto sigue privado, sin despliegue ni datos reales; país, marca, regulación y arquitectura productiva no aprobados.
+
+## 2026-10-25 — Incidencias y pruebas de la app web, versión candidata 0.5.0
+
+- Se implementó módulo de tickets residenciales dentro del mismo repositorio, en lugar de crear otra aplicación desconectada. Se conserva aislamiento y auditoría por comunidad.
+- Las incidencias de unidad son visibles al propietario autorizado; comité accede al seguimiento sin permisos de cambio de estado; administrador registra cambios con explicación.
+- Se añadieron 3 pruebas Node (32 total) y prueba de navegador con datos sintéticos. El recorrido local usa puente hacia la API real por bloqueo de HTTP desde Chromium; GitHub CI probará HTTP directo.
+- Se corrigió fallo del job E2E inicial provocado por runner Ubuntu 26.04 no soportado: se fijó Ubuntu 24.04 en PR #17. No confundir fallo de entorno con aprobación del test remoto.
+- La versión 0.5.0 es propuesta hasta integración del PR. No cambia privacidad ni ejecuta despliegues.
