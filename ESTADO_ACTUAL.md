@@ -87,3 +87,12 @@ La ejecución `40224344777` del workflow **Comprobaciones del prototipo**, asoci
 - No ejecutado: E2E completo navegador/API real por bloqueo de HTTP en Chromium del entorno, pruebas de cargas elevadas y pentest profesional.
 - **Fuera de alcance y sin aprobación:** pagos integrados con bancos, contabilidad legal completa, adjuntos/documentos reales, emails de invitación, MFA, gestión de usuarios web, despliegue y localización legal específica.
 - **Siguiente acción concreta:** confirmar último CI, revisar los PR #1/#9/#10, consolidar solo si no hay cambios de visibilidad ni despliegues involuntarios, decidir jurisdicción, probar backup/restauración operativa y preparar seguridad prod antes de datos reales.
+
+## 2026-10-25 — Correcciones y anulación financiera v0.4.0
+
+- Se añadieron reversos auditables de cuotas y pagos: registros originales permanecen; estado `Anulado` y motivo documentado; el balance excluye anulados. Administradores ven motivo, propietarios solo estado.
+- La API impide doble reverso (409), cruces entre comunidades y operaciones fuera del rol. La interfaz permite anular aportando motivo; CSV incluye estado y motivo para administración.
+- Validación local: `npm run check` pasó **24/24** pruebas. Chromium offline, usando respuesta API simulada, verificó modal y flujo de anulación, mobile/desktop sin desbordamiento; la E2E en servidor real sigue sin completar por bloqueo Chromium HTTP.
+- Verificación GitHub Actions del commit inicial v0.4.0 `66a31150052be6b614f34d83268e713228cd163c`: **completed/success** en ejecución `40227171067`. Los commits documentales posteriores deben reevaluarse.
+- No existe configuración de despliegue productivo en este repositorio; la conexión Vercel consultada no devolvió proyectos asociados al repositorio. No descarta conexiones externas desconocidas. Repositorio continúa privado.
+- **Pendientes:** país, marca y modelo contractual aprobados; legal/data protection; adjuntos seguros; invitaciones verificadas y recuperación de cuenta; integración bancaria; conciliación; seguridad avanzada; prueba de migraciones, restauración operacional y despliegue aprobado.
