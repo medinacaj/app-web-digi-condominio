@@ -44,3 +44,7 @@ Interfaz web local propuesta en `feat/prototipo-web-2026-10-25`. Documentación 
 ## Rama del MVP local
 
 Tras PR #1 y #9, evaluar [PR #10](https://github.com/medinacaj/app-web-digi-condominio/pull/10), que agrega persistencia y control de acceso. Ejecutar `npm run check` y leer `docs/MVP_LOCAL.md` antes de probar localmente. Configurar las credenciales iniciales con variables de entorno no versionadas. **No** cargar datos de residentes reales ni publicar el servidor.
+
+### Actualización v0.3.0
+
+En [PR #10](https://github.com/medinacaj/app-web-digi-condominio/pull/10) hay 23 pruebas, módulo local de proveedores/gastos, exportaciones CSV, respaldo/restore testado, importación de unidades y provisión de roles por CLI. Estos cambios no implican disponibilidad en `main` hasta fusionar. Usar `docs/MVP_LOCAL.md` para reproducir sin datos reales.
