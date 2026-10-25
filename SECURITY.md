@@ -37,3 +37,7 @@ Los reportes se autorizan por comunidad y unidad **en servidor**, con contenido 
 ## Seguridad v0.6.0 — Gestión de propietarios
 
 Los datos de miembros y emails se exponen solo a admins autenticados de cada comunidad. Asignar/revocar dueño de unidad requiere rol admin y pertenencia del nuevo dueño con rol owner en la misma comunidad. Cada cambio guarda evento histórico y auditoría de forma atómica; no elimina asientos de cuota/pago. Cerrar sesión elimina estado de interfaz y token en memoria. **Pendiente:** validación legal de títulos, comprobación de identidad, revocación de membresías, invitaciones, MFA, permisos de datos históricos y retención. No usar con datos reales.
+
+## Resguardo local experimental v0.7.0
+
+Se añade `backup:secure` / `restore:secure` con AES-256-GCM, clave derivada con scrypt, salt y nonce aleatorios y validación de integridad. Se impide sobrescritura del destino y `.gitignore` excluye `*.dcb`. El módulo no conserva claves y no envia datos a la nube. Requiere operador autorizado y gestión externa de frase de cifrado. Limitado a 100 MB de SQLite y archivos temporales privados que no garantizan borrado forense. Prohibido considerar esto una estrategia RPO/RTO, alta disponibilidad o conformidad legal. Ver `docs/RESPALDOS_CIFRADOS.md`.

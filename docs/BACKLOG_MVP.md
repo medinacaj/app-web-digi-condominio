@@ -65,3 +65,7 @@ En desarrollo: alta de reportes por unidad/área común, categorías, prioridad,
 ## Administración web de propietarios (PR #19)
 
 Implementado en rama: asignar y quitar propietarios preexistentes a las unidades, con historial auditable y aislamiento. No implementado: registrar usuarios desde la web, enlace de invitación, validación documental de títulos, recuperación de cuentas y revocación de membresías; son tareas de producto y seguridad aún pendientes. Aceptar el ítem tras CI directo E2E y merge, no antes.
+
+## Continuidad de respaldos (PR #21)
+
+Implementados para entorno local: snapshots SQLite cifrados AES-GCM, restauración autenticada a destino nuevo, integrity_check y marca `user_version=3` del esquema conocido. **Sin completar:** política de rotación, custodia de claves, almacenamiento fuera de sitio, restauración operacional supervisada, RPO/RTO, auditoría del proceso, migraciones no triviales y backend estable para producción. No cerrar issue #14 por esta implementación parcial.

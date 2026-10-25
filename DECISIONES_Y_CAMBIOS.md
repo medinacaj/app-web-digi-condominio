@@ -92,3 +92,11 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - Se almacena historia de cambios anterior/nuevo/actor/unidad con atomicidad de auditoría. Cambiar la asignación modifica acceso del propietario desde la siguiente consulta, sin modificar cargos y pagos históricos.
 - La nueva sesión ya no conserva sección, comunidad o filtros de la cuenta anterior; se detectó en el E2E de cambio de usuario.
 - 35 pruebas Node locales y E2E web con backend real por puente; CI previo del PR #19 pasó. No validar identidad/propiedad documental ni utilizar datos de residentes reales.
+
+## 2026-10-25 — Respaldo cifrado y esquema versionado (PR #21, candidato v0.7.0)
+
+- Se desarrolló comando de cifrado local AES-256-GCM de snapshots SQLite, derivación scrypt con passphrase proporcionada por entorno y restauración a archivo **nuevo** verificado por SQLite. No se sobrescriben bases existentes.
+- Se incorpora `user_version=3` mediante inicialización DDL transaccional y rechazo de bases de versiones futuras. No es un motor de migraciones generales.
+- El respaldo en memoria limita SQLite a 100 MB. Temporales privados siguen pudiendo conservar rastros físicos; no sustituye backups operacionales ni custodia de claves.
+- Se añadieron pruebas de CLI, corrupción, contraseña incorrecta, persistencia y versiones: **40/40 locales**. Propuesta en PR #21, CI remoto/merge aún por confirmar.
+- Se confirmó integración previa v0.6.0 en `main` (PR #19) con CI success. Sin cambios de visibilidad ni despliegue.

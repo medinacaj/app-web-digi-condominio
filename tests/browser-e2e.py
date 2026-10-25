@@ -11,6 +11,7 @@ import socket
 import time
 import urllib.request
 import urllib.error
+import shutil
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -38,7 +39,9 @@ s.setMembership(id,community,'owner');s.close();'''
             except OSError:time.sleep(.06)
         else:raise RuntimeError('Node no inició')
         with sync_playwright() as pw:
-            browser=pw.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage']) if DIRECT else pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
+            browser_path=(shutil.which('google-chrome') or shutil.which('google-chrome-stable') or shutil.which('chromium')) if DIRECT else '/usr/bin/chromium'
+            assert browser_path, 'El runner necesita Google Chrome o Chromium preinstalado'
+            browser=pw.chromium.launch(executable_path=browser_path,headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
             page=browser.new_page(viewport={'width':1440,'height':900},device_scale_factor=1)
             errors=[]
             page.on('pageerror',lambda err:errors.append(str(err)))

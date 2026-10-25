@@ -1,74 +1,38 @@
-# ESTADO_ACTUAL — Digi-Condominio
+# Estado actual de Digi-Condominio
 
-**Última revisión documental:** 2026-10-25  
-**Repositorio:** `medinacaj/app-web-digi-condominio` (privado)  
-**Producto:** MVP **local experimental v0.4.1**, no publicado.
+**Revisión:** 25-10-2026 · **Repositorio privado:** `medinacaj/app-web-digi-condominio`
 
-## Verificación de integración en GitHub
+## Integrado en `main` y verificado
 
-- PR [#1](https://github.com/medinacaj/app-web-digi-condominio/pull/1) — auditoría y contexto — **fusionado**.
-- PR [#9](https://github.com/medinacaj/app-web-digi-condominio/pull/9) — prototipo visual — **fusionado**.
-- PR [#10](https://github.com/medinacaj/app-web-digi-condominio/pull/10) — backend y frontend del MVP v0.4.0 — **fusionado**.
-- Commit de integración original: `547e4b193d999994e4ed2f1cce8289d8f86c6926`. El workflow de `main` de ese commit, run **40227481519**, terminó **success**. Este commit es referencia histórica, no necesariamente el HEAD futuro.
-- La corrección v0.4.1 agrega transacciones atómicas y política `.gitignore` reforzada. Validación local: **29/29** pruebas correctas. Revisar el CI del commit de integración de esta corrección en GitHub antes de afirmar que está publicado en `main`.
-- `main` aparecía `protected: false`; quedó [issue #8](https://github.com/medinacaj/app-web-digi-condominio/issues/8) pendiente de evaluar restricciones de plan y accesos. **No** hacer público el repositorio para resolverlo.
+| Fase | PR | Estado |
+|---|---|---|
+| Contexto y auditoría | [#1](https://github.com/medinacaj/app-web-digi-condominio/pull/1) | Fusionado |
+| Prototipo visual | [#9](https://github.com/medinacaj/app-web-digi-condominio/pull/9) | Fusionado |
+| Backend local y operaciones | [#10](https://github.com/medinacaj/app-web-digi-condominio/pull/10) | Fusionado |
+| Integridad y privacidad | [#11](https://github.com/medinacaj/app-web-digi-condominio/pull/11) | Fusionado |
+| Incidencias web + E2E | [#17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) | Fusionado, 32 pruebas Node |
+| Asignaciones de propietarios | [#19](https://github.com/medinacaj/app-web-digi-condominio/pull/19) | Fusionado, 35 pruebas Node |
 
-## Alcance técnico implementado
+**Último commit oficial de referencia al iniciar esta propuesta:** `9bc7509467db54fe22ef755ff29f2f725d01d696` (integración de v0.6.0). La CI del PR #19 incluyó jobs `verify` y `browser-e2e` en **success** (run `40230838865`). El commit de `main` v0.6.0 también terminó con run `40231050904` **success**. El repositorio permaneció privado, `main` sin protección nativa (issue #8).
 
-| Módulo | Estado real |
-|---|---|
-| UI adaptable y prototipo sintético | Implementados |
-| Login con scrypt, token de sesión revocable | Implementado, solo local |
-| Comunidades, membresías, roles y aislamiento | Implementados; pruebas negativas básicas |
-| Unidades, propietario, cuotas y pagos manuales | Implementados |
-| Estado de cuenta y anulaciones con motivo | Implementados |
-| Proveedores y gastos operativos | Implementados |
-| Avisos y metadatos de documentos | Implementados; archivos adjuntos **no** |
-| Reportes CSV y mitigación de fórmulas | Implementados |
-| Importación CSV, provisión de usuarios por CLI | Implementados en terminal local |
-| Backup de SQLite e integrity_check | Implementados; cifrado/recuperación operativa pendientes |
-| Escrituras y auditoría en transacción | Mejorados v0.4.1, 29 pruebas locales |
-| Integraciones de pago, bancos, notificaciones, MFA | **No implementadas** |
-| Servicio productivo y dominio público | **No desplegados** |
+## En revisión, NO integrado hasta el merge
 
-## Verificaciones realizadas
+[PR #21](https://github.com/medinacaj/app-web-digi-condominio/pull/21) v0.7.0: copia cifrada AES-GCM, restauración a ruta nueva, validación SQLite, control `PRAGMA user_version=3`. Pruebas Node **40/40 locales**; Playwright de la app con puente de este entorno pasó, pero requiere confirmar CI directo sobre último SHA y luego CI de `main`. Issue [#20](https://github.com/medinacaj/app-web-digi-condominio/issues/20).
 
-- Comprobaciones de sintaxis y `node --test`: 29/29 correctas en Node 22.16 (SQLite experimental) para la corrección v0.4.1.
-- Casos de éxito/error de autenticación, roles, aislamiento entre comunidades, propietario, importes y duplicados, reversos, CSV, restauración, importación por lotes y rollback de auditoría.
-- Pruebas previas en Chromium offline con API simulada: navegación, formularios, escape HTML, modal de anulación y anchuras 360/390/1440 px sin overflow. **No** prueba integrada de navegador con API real.
-- GitHub Actions de v0.4.0 en `main`: run **40227481519**, resultado **success**.
-- La conexión Vercel consultada no mostró un proyecto vinculado al repositorio; no prueba ausencia de otros proveedores.
+## Aplicación web implementada
 
-## Riesgos / bloqueos
+Panel, comunidades, unidades, asociación de propietarios, cuotas, pagos, anulaciones, comunicados, fichas de documentos, proveedores, gastos, auditoría e incidencias. Backend Node HTTP solo en `127.0.0.1`, SQLite local; no hay despliegue ni operaciones bancarias. El frontend adapta permisos y el backend los aplica. Los archivos de documentos siguen siendo **metadatos**, no adjuntos.
 
-**Producto:** país inicial (Chile/Venezuela/otro), nombre comercial, modelo de cuota/cobro, representantes legales y condiciones de operación no aprobados.
+## Validación y limitaciones
 
-**Seguridad y privacidad:** `main` sin protección efectiva verificada, MFA, recuperación de usuarios, TLS y cookies productivas, retención y cifrado de respaldos, controles de archivos adjuntos, monitoreo, auditoría de accesos y revisión legal pendientes. Los tests no equivalen a auditoría de seguridad independiente.
+- Tests Node locales v0.7 candidato: 40/40, incluyendo cifrado, recuperación, versión futura, permisos y reportes.
+- E2E Playwright real contra API HTTP en GitHub Actions verificado en v0.5 y v0.6. En el entorno actual de Chromium, `localhost` es bloqueado por política: las pruebas visuales locales ejecutaron la interfaz con un puente explícito al backend.
+- **No** hay auditoría de seguridad independiente, stress tests, HA, TLS productivo, MFA, manejo de adjuntos privados o notificaciones externas.
+- Jurisdicción de negocio/leyes, marca, alcance comercial, nube y reglas contables no aprobados.
 
-**Tecnología:** `node:sqlite` experimental, servidor solo `127.0.0.1`, sin arquitectura productiva confirmada. **No usar datos reales ni habilitar puertos externos**.
+## Siguiente acción exacta
 
-## Siguiente acción ejecutable
-
-1. Comprobar HEAD y CI de `main`, con versión `package.json` 0.4.1 y 29 pruebas; no asumir merge de otra rama.
-2. Revisar y completar seguridad / protección de repositorio (#8); comprobar acceso de colaboradores y aplicaciones conectadas con permisos autorizados.
-3. Resolver alcance y país con issues [#2](https://github.com/medinacaj/app-web-digi-condominio/issues/2), [#3](https://github.com/medinacaj/app-web-digi-condominio/issues/3), [#4](https://github.com/medinacaj/app-web-digi-condominio/issues/4), [#5](https://github.com/medinacaj/app-web-digi-condominio/issues/5).
-4. Planificar modelo de datos estable, pruebas E2E reales, migraciones, restauración cifrada, recuperación de cuentas y documentación legal. No iniciar despliegue público sin evaluación y autorización expresa.
-5. Mantener un issue y PR por cambio; registrar exactamente el código/probar/CI de cada avance.
-
-## 2026-10-25 — Iteración v0.5.0 (PR #17; estado sujeto a merge)
-
-- Se agregó al backend SQLite un módulo `incidents` / `incident_updates` con reportes por unidad o área común, categorías/prioridades, historial de comentarios y estados. Operaciones + auditoría en una misma transacción.
-- La **app web** incorpora navegación «Incidencias», formulario de reporte, comentarios, cambio de estado para administración y contador de incidencias abiertas.
-- Permisos: admin gestiona comunidad, comité comenta todos los reportes y reporta áreas comunes, propietario solo ve reportes propios/de unidades asignadas. Se niega acceso cruzado por comunidad y a unidades ajenas.
-- Pruebas **locales** verificadas: `npm run check` 32/32, 3 tests nuevos; Playwright ejecutó UI real con backend Node real a través de puente de test Python por restricción de red de Chromium en este entorno. Validó login, creación, comentario, estado, escape XSS, sin errores JS y 360/390/768/1440 px sin overflow.
-- Primer CI de navegador del PR: fallo de infraestructura con Ubuntu 26.04 no soportado por Playwright 1.56.0, job de sintaxis/Node pasó. Se fijó runner `ubuntu-24.04` en commit posterior, pendiente de éxito remoto; no declarar verde hasta confirmarlo.
-- PR: https://github.com/medinacaj/app-web-digi-condominio/pull/17. Issue: https://github.com/medinacaj/app-web-digi-condominio/issues/16.
-- **Pendientes**: fotografías/adjuntos, avisos por correo, SLA, asignación de responsable, paginación, retención legal; E2E directo y release aún no acreditados.
-
-## 2026-10-25 — Iteración v0.6.0, PR #19 (por integrar)
-
-- PR [#17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) de incidencias y E2E se fusionó en `main` (SHA `d75e8e5800044b5c84580dcce26bba11ba4848a0`). Pre-merge: tanto el job verify como browser-e2e de GitHub Actions terminaron success en run `40229952095`.
-- PR [#19](https://github.com/medinacaj/app-web-digi-condominio/pull/19) añade en rama asignación, reemplazo y revocación de propietario por unidad desde la web, listado de miembros administrado y eventos `unit_owner_events` auditados junto al cambio en una transacción.
-- Al cambiar de sesión se limpia navegación, comunidad, filtros, formularios y usuarios visualizados; corrección detectada por E2E.
-- Pruebas **locales** de v0.6.0: `npm run check` 35/35; Chromium web/API por puente en este entorno, con login admin/owner, unidad, asignación, incidencias y controles de privacidad. Run inicial CI del PR #19: `40230608106` completó con success; verificar ambas comprobaciones y nuevos commits antes de merge.
-- Queda pendiente integrar PR #19, comprobar CI post-merge y decidir jurisdicción, recuperación de cuenta, backend de producción, cifrado operacional, adjuntos y notificaciones.
+1. Confirmar los jobs `verify` y `browser-e2e` en el HEAD del PR #21. Corregir cualquier fallo y, si está verde, fusionar y comprobar `main`.
+2. Mantener abiertos [#2](https://github.com/medinacaj/app-web-digi-condominio/issues/2), [#3](https://github.com/medinacaj/app-web-digi-condominio/issues/3), [#4](https://github.com/medinacaj/app-web-digi-condominio/issues/4), [#5](https://github.com/medinacaj/app-web-digi-condominio/issues/5), [#8](https://github.com/medinacaj/app-web-digi-condominio/issues/8), [#12](https://github.com/medinacaj/app-web-digi-condominio/issues/12), [#13](https://github.com/medinacaj/app-web-digi-condominio/issues/13), [#14](https://github.com/medinacaj/app-web-digi-condominio/issues/14), [#15](https://github.com/medinacaj/app-web-digi-condominio/issues/15) en lo no concluido.
+3. Decidir país, roles legales, datos, arquitectura productiva y continuidad; avanzar invitaciones/MFA, archivos privados, migraciones, pruebas de seguridad y accesibilidad.
+4. No operar con datos de residentes reales ni abrir puertos remotos hasta aprobación de privacidad y controles de producción. Conservar seguimiento en PR y documentos, no solo en el chat.

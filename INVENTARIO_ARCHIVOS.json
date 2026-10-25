@@ -182,9 +182,9 @@
       "status": "existente_en_main_v0.4.0"
     }
   ],
-  "version_candidate": "0.6.0",
+  "version_candidate": "0.7.0",
   "tests_local": {
-    "passed": 35,
+    "passed": 40,
     "failed": 0
   },
   "ci_main_baseline": {
@@ -195,18 +195,25 @@
   "privacy": "repositorio_privado",
   "secrets_or_real_resident_data": "no_incluidos_en_el_codigo_creado",
   "verification_note": "Los estados de merge/CI y contenidos cambian con el tiempo; consultar GitHub antes de afirmar situación actual. Este manifiesto se construyó sobre main 0.4.0 con cambios candidatos 0.4.1.",
-  "pr_candidate": "https://github.com/medinacaj/app-web-digi-condominio/pull/19",
-  "issue_candidate": "https://github.com/medinacaj/app-web-digi-condominio/issues/18",
-  "files_in_candidate": 48,
+  "pr_candidate": "https://github.com/medinacaj/app-web-digi-condominio/pull/21",
+  "issue_candidate": "https://github.com/medinacaj/app-web-digi-condominio/issues/20",
+  "files_in_candidate": 55,
   "new_candidate_paths": [
     ".env.example",
     "docs/INCIDENCIAS.md",
     "tests/incidents.test.js",
     "tests/browser-e2e.py",
     "docs/ASIGNACIONES.md",
-    "tests/ownership.test.js"
+    "tests/ownership.test.js",
+    "server/secure-backup.js",
+    "server/secure-backup-cli.js",
+    "server/restore-backup-cli.js",
+    "tests/secure-backup.test.js",
+    "tests/secure-backup-cli.test.js",
+    "tests/schema-version.test.js",
+    "docs/RESPALDOS_CIFRADOS.md"
   ],
   "browser_e2e_direct_ci": "PR #19 first code commit completed success, verify latest",
-  "last_verified_main": "d75e8e5800044b5c84580dcce26bba11ba4848a0",
-  "revision_notice": "Version 0.6.0 proposed in PR #19, not main until merged. Legal and production remain pending."
+  "last_verified_main": "9bc7509467db54fe22ef755ff29f2f725d01d696",
+  "revision_notice": "0.7.0 aún solo en PR #21 hasta fusionar; todos los servicios se mantienen locales y repo privado."
 }
