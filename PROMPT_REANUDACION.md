@@ -11,3 +11,6 @@ Continuidad 2026-10-25: verificar estado de PR #17 (módulo de incidencias v0.5.
 
 
 Actualización v0.6.0: el PR #17 de incidencias ya se fusionó. Revisar PR #19 para asignación web de propietarios y limpieza de sesión, con 35 tests Node locales y E2E. Solo considerarlo integrado si `main` contiene su commit y las pruebas remotas son exitosas. El repositorio sigue privado y la app no está desplegada.
+
+
+Actualización v0.7.0: confirmados PR #17 y #19 fusionados a main y CI de v0.6.0 correcta. Revisar PR #21 (respaldo cifrado/esquema); candidato 40/40 Node local, CI remoto pendiente de verificación en HEAD actual. No llamar producción a la app, no cambiar privacidad. Continuar con issues abiertos de identidad, legal, adjuntos, seguridad y despliegue.
