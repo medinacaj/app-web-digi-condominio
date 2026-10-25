@@ -172,6 +172,19 @@ export class Store {
   }
   requireAdmin(userId, communityId) { if (this.member(userId, communityId) !== 'admin') throw new Problem(403, 'Acceso no autorizado'); }
   audit(userId, communityId, action, entityId) { this.db.prepare('INSERT INTO audit_events VALUES (?,?,?,?,?,?)').run(randomUUID(), communityId, userId, action, entityId, dateNow()); }
+  writeAudited(userId, communityId, action, entityId, write) {
+    // Each movement and its audit record either persist together or not at all.
+    this.db.exec('SAVEPOINT audited_write');
+    try {
+      write();
+      this.audit(userId, communityId, action, entityId);
+      this.db.exec('RELEASE SAVEPOINT audited_write');
+    } catch (error) {
+      this.db.exec('ROLLBACK TO SAVEPOINT audited_write');
+      this.db.exec('RELEASE SAVEPOINT audited_write');
+      throw error;
+    }
+  }
   overview(userId, communityId) {
     const role = this.member(userId, communityId);
     const visibility = role === 'owner' ? ' AND u.owner_user_id=?' : '';
@@ -206,9 +219,9 @@ export class Store {
     const ownerId=data.ownerUserId??null;
     if(ownerId && !this.db.prepare(`SELECT 1 FROM memberships WHERE user_id=? AND community_id=? AND role='owner'`).get(ownerId,communityId)) throw new Problem(400,'Propietario inválido para esta comunidad');
     const id=randomUUID();
-    try{this.db.prepare('INSERT INTO units VALUES (?,?,?,?,?,?,?)').run(id,communityId,code,kind,resident,ownerId,dateNow());}
+    try{this.writeAudited(userId,communityId,'unit.created',id,()=>this.db.prepare('INSERT INTO units VALUES (?,?,?,?,?,?,?)').run(id,communityId,code,kind,resident,ownerId,dateNow()));}
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'La unidad ya existe');throw e;}
-    this.audit(userId,communityId,'unit.created',id);
+
     return {id};
   }
   addCharge(userId,communityId,data){
@@ -216,9 +229,9 @@ export class Store {
     const unitId=requireText(data.unitId,'Unidad',60),period=requirePeriod(data.period),concept=requireText(data.concept,'Concepto',100),amountMinor=requireMinor(data.amountMinor);
     if(!this.unitIsIn(communityId,unitId)) throw new Problem(404,'Unidad no disponible');
     const id=randomUUID();
-    try{this.db.prepare('INSERT INTO charges VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,period,concept,amountMinor,dateNow());}
+    try{this.writeAudited(userId,communityId,'charge.created',id,()=>this.db.prepare('INSERT INTO charges VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,period,concept,amountMinor,dateNow()));}
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'Cuota duplicada para período, unidad y concepto');throw e;}
-    this.audit(userId,communityId,'charge.created',id);
+
     return {id};
   }
   addPayment(userId,communityId,data){
@@ -226,16 +239,16 @@ export class Store {
     const unitId=requireText(data.unitId,'Unidad',60), reference=requireText(data.reference,'Referencia',90),concept=requireText(data.concept,'Concepto',100),amountMinor=requireMinor(data.amountMinor);
     if(!this.unitIsIn(communityId,unitId)) throw new Problem(404,'Unidad no disponible');
     const id=randomUUID();
-    try{this.db.prepare('INSERT INTO payments VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,reference,concept,amountMinor,dateNow());}
+    try{this.writeAudited(userId,communityId,'payment.created',id,()=>this.db.prepare('INSERT INTO payments VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,reference,concept,amountMinor,dateNow()));}
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'Referencia de pago duplicada en la comunidad');throw e;}
-    this.audit(userId,communityId,'payment.created',id);
+
     return {id};
   }
   addAnnouncement(userId,communityId,data){
     this.requireAdmin(userId,communityId);
     const title=requireText(data.title,'Título',90),body=requireText(data.body,'Mensaje',2000),id=randomUUID();
-    this.db.prepare('INSERT INTO announcements VALUES (?,?,?,?,?,?)').run(id,communityId,title,body,userId,dateNow());
-    this.audit(userId,communityId,'announcement.created',id);
+    this.writeAudited(userId,communityId,'announcement.created',id,()=>this.db.prepare('INSERT INTO announcements VALUES (?,?,?,?,?,?)').run(id,communityId,title,body,userId,dateNow()));
+
     return {id};
   }
   reverseEntry(userId,communityId,type,entityId,reason){
@@ -247,17 +260,17 @@ export class Store {
     const exists=this.db.prepare(`SELECT id FROM ${table} WHERE id=? AND community_id=?`).get(entityId,communityId);
     if(!exists)throw new Problem(404,'Movimiento no disponible');
     const id=randomUUID();
-    try{this.db.prepare('INSERT INTO reversals VALUES (?,?,?,?,?,?,?)').run(id,communityId,type,entityId,userId,reason,dateNow());}
+    try{this.writeAudited(userId,communityId,`${type}.reversed`,entityId,()=>this.db.prepare('INSERT INTO reversals VALUES (?,?,?,?,?,?,?)').run(id,communityId,type,entityId,userId,reason,dateNow()));}
     catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Movimiento ya reversado');throw e;}
-    this.audit(userId,communityId,`${type}.reversed`,entityId);
+
     return {id};
   }
   addProvider(userId,communityId,data){
     this.requireAdmin(userId,communityId);
     const name=requireText(data.name,'Proveedor',130),category=requireText(data.category,'Rubro',70),id=randomUUID();
-    try{this.db.prepare('INSERT INTO providers VALUES (?,?,?,?,?)').run(id,communityId,name,category,dateNow());}
+    try{this.writeAudited(userId,communityId,'provider.created',id,()=>this.db.prepare('INSERT INTO providers VALUES (?,?,?,?,?)').run(id,communityId,name,category,dateNow()));}
     catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Proveedor ya registrado');throw e;}
-    this.audit(userId,communityId,'provider.created',id);
+
     return {id};
   }
   addExpense(userId,communityId,data){
@@ -266,8 +279,8 @@ export class Store {
       concept=requireText(data.concept,'Concepto',100),amountMinor=requireMinor(data.amountMinor);
     if(!this.db.prepare('SELECT 1 FROM providers WHERE community_id=? AND id=?').get(communityId,providerId))throw new Problem(404,'Proveedor no disponible');
     const id=randomUUID();
-    this.db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run(id,communityId,providerId,period,concept,amountMinor,dateNow());
-    this.audit(userId,communityId,'expense.created',id);
+    this.writeAudited(userId,communityId,'expense.created',id,()=>this.db.prepare('INSERT INTO expenses VALUES (?,?,?,?,?,?,?)').run(id,communityId,providerId,period,concept,amountMinor,dateNow()));
+
     return {id};
   }
   addDocument(userId,communityId,data){
@@ -275,8 +288,8 @@ export class Store {
     const title=requireText(data.title,'Documento',150),category=requireText(data.category,'Categoría',60),scope=data.scope;
     if(!['community','committee','admin'].includes(scope))throw new Problem(400,'Visibilidad inválida');
     const id=randomUUID();
-    this.db.prepare('INSERT INTO documents VALUES (?,?,?,?,?,?)').run(id,communityId,title,category,scope,dateNow());
-    this.audit(userId,communityId,'document.metadata_created',id);
+    this.writeAudited(userId,communityId,'document.metadata_created',id,()=>this.db.prepare('INSERT INTO documents VALUES (?,?,?,?,?,?)').run(id,communityId,title,category,scope,dateNow()));
+
     return {id};
   }
 }

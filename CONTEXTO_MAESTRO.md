@@ -75,3 +75,7 @@ Mantener repositorio **privado** y evitar datos reales, secretos o archivos conf
 ## Reglas de continuidad
 
 Toda decisión registra fecha, motivo y efectos. Toda tarea distingue **propuesta / aprobada / implementada / probada / publicada**. Cada PR debe actualizar documentación y evidencia técnica, y ningún cierre de issue debe fingir validaciones no efectuadas.
+
+## Nota de trazabilidad técnica, 2026-10-25
+
+El producto ya cuenta con **MVP local experimental** (v0.4.x) de interfaz y API, autenticación, aislamiento de comunidades, unidades, cuotas y pagos manuales, reversos auditados, proveedores, gastos, avisos, CSV e importación local. Esta implementación parcial **no** ratifica como requisitos finales los supuestos comerciales de CondoTech, la jurisdicción, el nombre comercial o el modelo contable. Consultar `ESTADO_ACTUAL.md` y `docs/MVP_LOCAL.md` antes de continuar.

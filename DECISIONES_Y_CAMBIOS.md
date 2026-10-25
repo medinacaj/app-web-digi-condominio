@@ -68,3 +68,12 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - Se evita corregir importes eliminando registros: las anulaciones son entradas independientes por tipo y movimiento, únicas por comunidad, con motivo y usuario responsable.
 - Saldos y totales consideran solo movimientos activos. La visibilidad del motivo está restringida a administradores, aunque propietarios ven estado de anulación.
 - 24/24 pruebas locales correctas y CI del código v0.4.0 confirmado verde. Función implementada en PR #10, no necesariamente integrada a `main` hasta merge.
+
+## 2026-10-25 — Integración confirmada y seguridad v0.4.1
+
+- Fusionados PR #1 (contexto), #9 (UI) y #10 (MVP local) con commits de merge respectivamente `2d8c1430`, `5b1e54ec` y `547e4b19`.
+- Verificado CI de `main` v0.4.0: run **40227481519**, **success**.
+- Auditoría posterior detectó regresión en `.gitignore`: se habían perdido patrones para archivos `.env`, certificados, directorios privados. Se restauraron y añadieron pruebas de regresión; no se encontraron tales archivos en el inventario del repositorio.
+- Se vinculan altas financieras, documentales y reversos con el evento de auditoría usando `SAVEPOINT` SQLite para permitir importaciones por lotes y rollback completo; nueva prueba simula fallos de auditoría y confirma ausencia de datos huérfanos.
+- Corrección v0.4.1 comprobada localmente: **29/29 tests**. No asumir integración hasta comprobar último PR/CI.
+- Proyecto sigue privado, sin despliegue ni datos reales; país, marca, regulación y arquitectura productiva no aprobados.

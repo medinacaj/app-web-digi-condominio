@@ -49,3 +49,11 @@ Bancos/pasarela propia, custodia de fondos, contabilidad legal completa, IoT, ac
 ## Reglas de cada issue
 
 Objetivo, contexto, criterios de aceptación comprobables, seguridad/privacidad afectada, dependencias, evidencia de pruebas, enlace PR y estado `propuesto/aprobado/implementado/probado/publicado`.
+
+## Estado de entrega (reconciliación 2026-10-25)
+
+**Implementado y comprobado en entorno local:** unidades, roles y aislamiento básico, cargos y pagos manuales, estado de cuenta, anulaciones auditables, avisos, metadatos de documentos, proveedores y gastos, reportes CSV, importación CSV y respaldos de SQLite; 29 tests v0.4.1.
+
+**No implementado o no aprobado:** carga/descarga segura de archivos, control de acceso de comité según normativa local, MFA, recuperación de cuentas, invitaciones autenticadas, XLSX, migraciones de esquema y auditoría independiente, integraciones bancarias/pagos, sistema de notificaciones, backups cifrados con restauración operacional, E2E navegador/backend, disponibilidad 24/7, despliegue y conformidad legal.
+
+**Regla de calidad:** un requisito sólo cuenta como completado cuando exista código en `main`, test y evidencia verificable; las decisiones de negocio y normativas requieren aprobación explícita independiente. Este documento conserva el backlog propuesto para facilitar esa decisión.

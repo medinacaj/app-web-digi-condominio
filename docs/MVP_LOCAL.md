@@ -1,4 +1,4 @@
-# Digi-Condominio · MVP local 0.4.0
+# Digi-Condominio · MVP local 0.4.1
 
 **Estado:** implementación local en fase de validación; **NO apto para producción**.
 
@@ -46,7 +46,7 @@ Pruebas de lógica de demo, backend, aislamiento entre tenants, sesiones, roles,
 ## Limitaciones conocidas / ruta a producción
 
 - Todavía no hay registro, verificación por correo, restablecimiento de contraseña, MFA, flujo de invitaciones, conciliación bancaria, soporte multiempresa real ni permisos granulares negociados por jurisdicción.
-- Todavía no hay interfaz para asignar un propietario a una unidad, ni migración CSV/Excel, proveedores/gastos, cobro electrónico o gestión de documentos adjuntos.
+- La asignación de propietarios y la importación CSV por CLI están disponibles para uso local, pero no como interfaz pública; aún no hay importador XLSX, cobro electrónico ni gestión de documentos adjuntos.
 - El token se mantiene solo en RAM y se pierde tras recargar, lo que implica iniciar sesión de nuevo. Para producción, diseñar cookies `HttpOnly` seguras con CSRF y HTTPS cuando exista infraestructura.
 - El sistema local está expresamente bloqueado a `127.0.0.1`; **NO** publicar ni agregar proxy sin revisar TLS, cookies/tokens, monitoreo, backups/restauración y aspectos legales.
 - `node:sqlite` es experimental en el entorno probado; antes de producción elegir backend estable, probar migraciones y restauración y revisar compliance.
@@ -54,7 +54,7 @@ Pruebas de lógica de demo, backend, aislamiento entre tenants, sesiones, roles,
 
 ## Privacidad y estado de GitHub
 
-Conservar repo privado. Ningún archivo de `.data/`, credencial o comprobante de residentes debe versionarse. La implementación vive en rama de trabajo y su PR no equivale a despliegue. No se ha seleccionado país ni marca comercial definitivos.
+Conservar repo privado. Ningún archivo de `.data/`, credencial o comprobante de residentes debe versionarse. La implementación inicial v0.4.0 está integrada en `main` (PR #10); las correcciones de seguridad v0.4.1 se integrarán al concluir sus pruebas y revisión. Ninguna integración en GitHub equivale a despliegue. No se ha seleccionado país ni marca comercial definitivos.
 
 ## Gastos, proveedores e informes CSV (iteración posterior)
 
@@ -100,3 +100,7 @@ Esta es una **herramienta local experimental**. No importar datos personales rea
 ## Anulación auditable de cuotas y pagos (iteración posterior)
 
 El administrador puede **anular** una cuota o un pago erróneo aportando un motivo de 10 a 500 caracteres. La API guarda un reverso independiente, no elimina el movimiento original y solo admite un reverso por movimiento. Los saldos e indicadores excluyen movimientos anulados; la vista administrativa y el CSV muestran el estado y motivo del reverso. Los propietarios ven el estado anulado pero no el motivo administrativo. Los comprobantes bancarios, asientos contables formales y los reembolsos reales permanecen fuera de esta implementación.
+
+## Integridad y seguridad v0.4.1
+
+Cada operación de alta de unidades, cuotas, pagos, comunicados, proveedores, gastos, metadatos de documentos y reversos se ejecuta con su evento de auditoría en un **SAVEPOINT** SQLite: si el evento falla, se revierte también el cambio principal. Los puntos de guardado permiten que el importador CSV mantenga su transacción exterior y revierta todo un lote. Se reforzó `.gitignore` para excluir credenciales, archivos de configuración local, certificados y datos/respaldos. No sustituye un escaneo de secretos ni una política de gestión de datos; mantener prueba y revisión manual antes de usar datos reales. La batería automática contiene 29 pruebas.

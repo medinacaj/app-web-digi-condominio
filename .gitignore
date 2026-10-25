@@ -1,8 +1,42 @@
+# Secrets and local settings: never version credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.p8
+*.credentials.json
 
-# Base de datos local y copias de desarrollo
+# Runtime databases, journals, temporary/backups and resident data
 .data/
 *.sqlite
 *.sqlite-*
+*.sqlite3
+*.sqlite3-*
 *.db
 *.db-*
 *.backup
+*.bak
+backups/
+uploads/
+private/
+
+# Dependencies, build output and temporary files
+node_modules/
+.next/
+dist/
+build/
+coverage/
+*.log
+*.tmp
+*.swp
+.nyc_output/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
