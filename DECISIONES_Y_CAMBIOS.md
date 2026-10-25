@@ -46,3 +46,12 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - El prototipo inicial generaba ancho adicional en vista móvil por columnas `1fr` con ancho mínimo implícito. Corregido usando `minmax(0,1fr)` en rejillas de dashboard y configuración.
 - Captura offline con Chromium verificó anchura del documento igual al viewport a 360, 390, 768 y 1440 px; prueba de búsqueda, navegación y creación de comunicado sin errores JS.
 - La navegación real mediante servidor HTTP en Chromium estuvo bloqueada por política del entorno; no se declara prueba end-to-end HTTP en navegador.
+
+## 2026-10-25 — MVP local en PR #10 (implementación en rama)
+
+- Se eligió **transitoriamente** Node.js 22 + SQLite integrado para backend local, sin dependencias externas. La API `node:sqlite` está marcada experimental; stack productivo **no aprobado**.
+- Autenticación, roles y restricción por comunidad y unidad implementados del lado del servidor. Los datos de producción siguen prohibidos.
+- Se implementaron altas auditables de unidades, cuotas, pagos manuales, comunicados y metadatos documentales; no hay eliminación, edición destructiva, conciliación ni pagos online.
+- Se corrigió error de cantidad de parámetros en INSERT de pagos detectado en primera corrida de tests (15/16 → 16/16) y se añadió persistencia con reinicio (17/17).
+- Chromium visual offline con API simulada validó interfaz y flujo básico; HTTP navegador está bloqueado por el entorno.
+- PR #10 depende del PR #9 y conserva el repositorio privado; no se publica ni fusiona sin revisar.
