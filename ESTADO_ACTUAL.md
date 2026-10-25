@@ -1,38 +1,43 @@
-# Estado actual de Digi-Condominio
+# Estado actual — Digi-Condominio v0.7.0
 
-**Revisión:** 25-10-2026 · **Repositorio privado:** `medinacaj/app-web-digi-condominio`
+**Corte verificado:** 25-10-2026 · [Repositorio privado](https://github.com/medinacaj/app-web-digi-condominio)
 
-## Integrado en `main` y verificado
+## Integraciones verificadas
 
-| Fase | PR | Estado |
+| Versión/fase | Pull request | Resultado |
 |---|---|---|
-| Contexto y auditoría | [#1](https://github.com/medinacaj/app-web-digi-condominio/pull/1) | Fusionado |
-| Prototipo visual | [#9](https://github.com/medinacaj/app-web-digi-condominio/pull/9) | Fusionado |
-| Backend local y operaciones | [#10](https://github.com/medinacaj/app-web-digi-condominio/pull/10) | Fusionado |
-| Integridad y privacidad | [#11](https://github.com/medinacaj/app-web-digi-condominio/pull/11) | Fusionado |
-| Incidencias web + E2E | [#17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) | Fusionado, 32 pruebas Node |
-| Asignaciones de propietarios | [#19](https://github.com/medinacaj/app-web-digi-condominio/pull/19) | Fusionado, 35 pruebas Node |
+| Auditoría y contexto | [#1](https://github.com/medinacaj/app-web-digi-condominio/pull/1) | Fusionado |
+| Prototipo de interfaz | [#9](https://github.com/medinacaj/app-web-digi-condominio/pull/9) | Fusionado |
+| MVP local | [#10](https://github.com/medinacaj/app-web-digi-condominio/pull/10) | Fusionado |
+| Atomicidad y seguridad | [#11](https://github.com/medinacaj/app-web-digi-condominio/pull/11) | Fusionado |
+| Incidencias y E2E directo | [#17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) | Fusionado |
+| Propietarios desde web | [#19](https://github.com/medinacaj/app-web-digi-condominio/pull/19) | Fusionado |
+| Respaldo cifrado/esquema | [#21](https://github.com/medinacaj/app-web-digi-condominio/pull/21) | Fusionado |
 
-**Último commit oficial de referencia al iniciar esta propuesta:** `9bc7509467db54fe22ef755ff29f2f725d01d696` (integración de v0.6.0). La CI del PR #19 incluyó jobs `verify` y `browser-e2e` en **success** (run `40230838865`). El commit de `main` v0.6.0 también terminó con run `40231050904` **success**. El repositorio permaneció privado, `main` sin protección nativa (issue #8).
+- **HEAD de `main` verificado:** `5e81640f1a570d1ecb957de8c871adbda9a77480`, commit de integración de v0.7.0.
+- **CI de `main`:** run [40231797604](https://github.com/medinacaj/app-web-digi-condominio/actions/runs/40231797604), jobs Node y Playwright **completed/success**.
+- **40/40 tests Node** y recorrido E2E web directo desde GitHub Actions. Chromium local en este entorno precisó puente de red, limitación registrada.
+- **Inventario**: 55 archivos de código, pruebas, workflows y documentación. `package.json` versión **0.7.0**.
+- **Privacidad**: repositorio `private`. `main` `protected:false`; revisión de accesos y branch protection pendiente (issue #8).
+- **Despliegue**: ninguno realizado. Node `127.0.0.1`, SQLite experimental, no datos reales.
 
-## En revisión, NO integrado hasta el merge
+## Funciones disponibles
 
-[PR #21](https://github.com/medinacaj/app-web-digi-condominio/pull/21) v0.7.0: copia cifrada AES-GCM, restauración a ruta nueva, validación SQLite, control `PRAGMA user_version=3`. Pruebas Node **40/40 locales**; Playwright de la app con puente de este entorno pasó, pero requiere confirmar CI directo sobre último SHA y luego CI de `main`. Issue [#20](https://github.com/medinacaj/app-web-digi-condominio/issues/20).
+Panel web responsive; login; comunidades/roles; unidades y asignación de propietarios; cuotas y cargos; pagos manuales; reversos e historial; gastos/proveedores; avisos; fichas documentales; CSV; incidencias; backups cifrados/restauración y control del esquema local. La autorización efectiva está en el servidor, no en botones de UI.
 
-## Aplicación web implementada
+## Funciones pendientes o que requieren autorización/decisiones
 
-Panel, comunidades, unidades, asociación de propietarios, cuotas, pagos, anulaciones, comunicados, fichas de documentos, proveedores, gastos, auditoría e incidencias. Backend Node HTTP solo en `127.0.0.1`, SQLite local; no hay despliegue ni operaciones bancarias. El frontend adapta permisos y el backend los aplica. Los archivos de documentos siguen siendo **metadatos**, no adjuntos.
+**Producto/legal:** país objetivo, marca definitiva, obligaciones de copropiedad/privacidad, permisos de comité, contratos, tratamiento de datos y reglas monetarias.
 
-## Validación y limitaciones
+**Tecnología:** arquitectura productiva estable, migraciones reales posteriores, servicio con HTTPS y cookies seguras, invitaciones/MFA/recuperación, adjuntos privados, notificaciones, conciliación, pagos autorizados, backup operacional, observabilidad, rate limits, pruebas de carga, seguridad independiente y revisión de accesibilidad.
 
-- Tests Node locales v0.7 candidato: 40/40, incluyendo cifrado, recuperación, versión futura, permisos y reportes.
-- E2E Playwright real contra API HTTP en GitHub Actions verificado en v0.5 y v0.6. En el entorno actual de Chromium, `localhost` es bloqueado por política: las pruebas visuales locales ejecutaron la interfaz con un puente explícito al backend.
-- **No** hay auditoría de seguridad independiente, stress tests, HA, TLS productivo, MFA, manejo de adjuntos privados o notificaciones externas.
-- Jurisdicción de negocio/leyes, marca, alcance comercial, nube y reglas contables no aprobados.
+**Seguimiento abierto:** #2, #3, #4, #5, #6 (lint/typecheck aún pendiente), #8, #12 (a11y y regresión visual), #13, #14 y #15. Cerrar #16, #18 y #20 únicamente con su evidencia de integración.
 
-## Siguiente acción exacta
+## Siguiente acción
 
-1. Confirmar los jobs `verify` y `browser-e2e` en el HEAD del PR #21. Corregir cualquier fallo y, si está verde, fusionar y comprobar `main`.
-2. Mantener abiertos [#2](https://github.com/medinacaj/app-web-digi-condominio/issues/2), [#3](https://github.com/medinacaj/app-web-digi-condominio/issues/3), [#4](https://github.com/medinacaj/app-web-digi-condominio/issues/4), [#5](https://github.com/medinacaj/app-web-digi-condominio/issues/5), [#8](https://github.com/medinacaj/app-web-digi-condominio/issues/8), [#12](https://github.com/medinacaj/app-web-digi-condominio/issues/12), [#13](https://github.com/medinacaj/app-web-digi-condominio/issues/13), [#14](https://github.com/medinacaj/app-web-digi-condominio/issues/14), [#15](https://github.com/medinacaj/app-web-digi-condominio/issues/15) en lo no concluido.
-3. Decidir país, roles legales, datos, arquitectura productiva y continuidad; avanzar invitaciones/MFA, archivos privados, migraciones, pruebas de seguridad y accesibilidad.
-4. No operar con datos de residentes reales ni abrir puertos remotos hasta aprobación de privacidad y controles de producción. Conservar seguimiento en PR y documentos, no solo en el chat.
+1. Revisar issues de producto, país, privacidad y arquitectura para definir una versión operable con criterios de aceptación.
+2. Mejorar identidad, recuperación, MFA, políticas de permisos y carga segura de documentos con tests negativos.
+3. Acordar proveedor y estrategia de continuidad antes de despliegues y datos reales.
+4. Actualizar este documento al fusionar cada cambio, con SHA, CI real y bloqueos.
+
+**No** declarar software de producción, cumplimiento jurídico o pruebas realizadas sin evidencia.

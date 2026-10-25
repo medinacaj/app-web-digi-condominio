@@ -14,3 +14,6 @@ Actualización v0.6.0: el PR #17 de incidencias ya se fusionó. Revisar PR #19 p
 
 
 Actualización v0.7.0: confirmados PR #17 y #19 fusionados a main y CI de v0.6.0 correcta. Revisar PR #21 (respaldo cifrado/esquema); candidato 40/40 Node local, CI remoto pendiente de verificación en HEAD actual. No llamar producción a la app, no cambiar privacidad. Continuar con issues abiertos de identidad, legal, adjuntos, seguridad y despliegue.
+
+
+**Fuente de verdad actualizada:** PR #21 está fusionado en main, junto con #17 y #19. SHA de referencia `5e81640f1a570d1ecb957de8c871adbda9a77480`, CI run 40231797604 success, versión 0.7.0 y 40 pruebas Node. Verifique siempre HEAD actualizado antes de continuar. Próximos temas reales: validación país/legal, seguridad de identidad, gestión segura de adjuntos, migraciones, recuperación y despliegue solo autorizado.
