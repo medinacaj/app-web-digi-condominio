@@ -64,3 +64,35 @@ Después de cada cambio: fecha/hora, issue, PR/commit, alcance, archivos, estado
 ## CI remoto GitHub Actions (2026-10-25)
 
 La ejecución `40224344777` del workflow **Comprobaciones del prototipo**, asociada al PR #9, terminó con estado `completed` y conclusión **success**. Esto valida los pasos automatizados configurados de sintaxis y pruebas unitarias, no despliegue ni seguridad productiva.
+
+## 2026-10-25 — Segunda fase: MVP local (PR #10)
+
+- Rama `feat/mvp-local-seguro-2026-10-25`, dependiente de PR #9, que a su vez depende de PR #1. **Ninguno de estos PR está fusionado en `main` a este corte.**
+- PR #10: https://github.com/medinacaj/app-web-digi-condominio/pull/10.
+- Backend local Node 22 `node:http`, SQLite `node:sqlite` experimental; REST limitado al host 127.0.0.1.
+- Autenticación con scrypt/sal, tokens aleatorios hasheados, caducidad 8h y logout.
+- Datos persistentes: comunidades, membresías, unidades, cuotas, pagos manuales, avisos y fichas documentales. Roles admin/comité/propietario aplicados en servidor; saldos de comité suprimidos; propietarios limitados a sus unidades.
+- Prevención de cargos duplicados por unidad/período/concepto, pagos duplicados por referencia y auditoría de altas. La gestión de archivos adjuntos, bancos e invitaciones no está implementada.
+- **Pruebas ejecutadas localmente:** `npm run check` 17/17 correctas, incluye HTTP real, permisos negativos entre tenants y SQLite reabierto. En Chromium offline con mock API: login, unidades, cuotas, pagos, XSS escapado y sin overflow a 360/390/1440; sin errores JS.
+- **Limitación de QA:** Chromium bloqueó navegación HTTP local por política del entorno; no se declara E2E navegador+backend. GitHub Actions remoto requiere comprobación de conclusión final tras cada commit.
+- **Siguiente acción concreta:** revisar PR #10, validar reglas del negocio y país; pruebas E2E reales, migraciones/backup, onboarding de usuarios y funciones financieras/documentales pendientes antes de operar con datos reales.
+
+## 2026-10-25 — Iteraciones adicionales (PR #10 · v0.3.0)
+
+- Implementados en la rama: proveedores y gastos por comunidad, exportaciones CSV con mitigación de fórmulas de hoja de cálculo, respaldos SQLite con `integrity_check`, importación CSV de unidades con vista previa y transacción, y alta local de usuarios con asignación de rol/unidad.
+- Endpoints y UI limitan proveedores/gastos a administradores; exportes requieren rol administrador, no quedan publicados.
+- Mejoras de validación: importes, duplicados, referencias, alta de usuarios transaccional, rechazo de escritura a ruta de consulta y bloqueo de doble envío de formularios.
+- **Pruebas locales verificadas:** 23/23 correctas, cero fallos. Incluye respaldos, restauración, CSV, seguridad de exportaciones, flujo de API, aislamiento multi-tenant y persistencia SQLite.
+- **Verificaciones remotas parciales:** CI de los commits `60d2342...`, `5e4dcea...`, `f1bbcef...` y `8f1ea72...` concluyó en éxito; el último SHA requiere nueva comprobación remota tras la documentación.
+- No ejecutado: E2E completo navegador/API real por bloqueo de HTTP en Chromium del entorno, pruebas de cargas elevadas y pentest profesional.
+- **Fuera de alcance y sin aprobación:** pagos integrados con bancos, contabilidad legal completa, adjuntos/documentos reales, emails de invitación, MFA, gestión de usuarios web, despliegue y localización legal específica.
+- **Siguiente acción concreta:** confirmar último CI, revisar los PR #1/#9/#10, consolidar solo si no hay cambios de visibilidad ni despliegues involuntarios, decidir jurisdicción, probar backup/restauración operativa y preparar seguridad prod antes de datos reales.
+
+## 2026-10-25 — Correcciones y anulación financiera v0.4.0
+
+- Se añadieron reversos auditables de cuotas y pagos: registros originales permanecen; estado `Anulado` y motivo documentado; el balance excluye anulados. Administradores ven motivo, propietarios solo estado.
+- La API impide doble reverso (409), cruces entre comunidades y operaciones fuera del rol. La interfaz permite anular aportando motivo; CSV incluye estado y motivo para administración.
+- Validación local: `npm run check` pasó **24/24** pruebas. Chromium offline, usando respuesta API simulada, verificó modal y flujo de anulación, mobile/desktop sin desbordamiento; la E2E en servidor real sigue sin completar por bloqueo Chromium HTTP.
+- Verificación GitHub Actions del commit inicial v0.4.0 `66a31150052be6b614f34d83268e713228cd163c`: **completed/success** en ejecución `40227171067`. Los commits documentales posteriores deben reevaluarse.
+- No existe configuración de despliegue productivo en este repositorio; la conexión Vercel consultada no devolvió proyectos asociados al repositorio. No descarta conexiones externas desconocidas. Repositorio continúa privado.
+- **Pendientes:** país, marca y modelo contractual aprobados; legal/data protection; adjuntos seguros; invitaciones verificadas y recuperación de cuenta; integración bancaria; conciliación; seguridad avanzada; prueba de migraciones, restauración operacional y despliegue aprobado.

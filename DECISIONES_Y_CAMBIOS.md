@@ -46,3 +46,25 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - El prototipo inicial generaba ancho adicional en vista móvil por columnas `1fr` con ancho mínimo implícito. Corregido usando `minmax(0,1fr)` en rejillas de dashboard y configuración.
 - Captura offline con Chromium verificó anchura del documento igual al viewport a 360, 390, 768 y 1440 px; prueba de búsqueda, navegación y creación de comunicado sin errores JS.
 - La navegación real mediante servidor HTTP en Chromium estuvo bloqueada por política del entorno; no se declara prueba end-to-end HTTP en navegador.
+
+## 2026-10-25 — MVP local en PR #10 (implementación en rama)
+
+- Se eligió **transitoriamente** Node.js 22 + SQLite integrado para backend local, sin dependencias externas. La API `node:sqlite` está marcada experimental; stack productivo **no aprobado**.
+- Autenticación, roles y restricción por comunidad y unidad implementados del lado del servidor. Los datos de producción siguen prohibidos.
+- Se implementaron altas auditables de unidades, cuotas, pagos manuales, comunicados y metadatos documentales; no hay eliminación, edición destructiva, conciliación ni pagos online.
+- Se corrigió error de cantidad de parámetros en INSERT de pagos detectado en primera corrida de tests (15/16 → 16/16) y se añadió persistencia con reinicio (17/17).
+- Chromium visual offline con API simulada validó interfaz y flujo básico; HTTP navegador está bloqueado por el entorno.
+- PR #10 depende del PR #9 y conserva el repositorio privado; no se publica ni fusiona sin revisar.
+
+## 2026-10-25 — Más avances funcionales en PR #10
+
+- Implementados proveedores/gastos, CSV UTF-8 protegido de inyección de fórmulas, respaldo online SQLite con validación, importación CSV de unidades con previsualización y rollback, y aprovisionamiento de usuarios por CLI con rol por comunidad.
+- Se mantuvo la restricción a acceso local `127.0.0.1`, sin servicios externos, permisos reales, ni publicación. El sistema continúa como MVP experimental, no liberación productiva.
+- Al 25-10-2026 `npm run check` pasó **23 de 23 tests**. No se certifica seguridad con ello.
+- El PR #10 es dependiente del #9 y del #1. Las decisiones de país, cumplimiento legal, credenciales productivas, infraestructura y marca permanecen pendientes.
+
+## 2026-10-25 — Anulación auditada de movimientos (v0.4.0)
+
+- Se evita corregir importes eliminando registros: las anulaciones son entradas independientes por tipo y movimiento, únicas por comunidad, con motivo y usuario responsable.
+- Saldos y totales consideran solo movimientos activos. La visibilidad del motivo está restringida a administradores, aunque propietarios ven estado de anulación.
+- 24/24 pruebas locales correctas y CI del código v0.4.0 confirmado verde. Función implementada en PR #10, no necesariamente integrada a `main` hasta merge.

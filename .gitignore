@@ -1,22 +1,8 @@
-# Variables y secretos
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.p12
-*.pfx
 
-# Dependencias y artefactos de builds futuros
-node_modules/
-.next/
-dist/
-build/
-coverage/
-*.log
-
-# SO y editor
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
+# Base de datos local y copias de desarrollo
+.data/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.backup

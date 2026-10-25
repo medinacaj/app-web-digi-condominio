@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { Store } from '../server/store.js';
+import { report } from '../server/report.js';
+
+test('reversos no borran registros, recalculan saldos y son únicos',t=>{
+ const s=new Store();t.after(()=>s.close());
+ const admin=s.createUser('admin@example.test','VeryStrongPassword#2026');
+ const owner=s.createUser('owner@example.test','VeryStrongPassword#2026');
+ const outsider=s.createUser('other@example.test','VeryStrongPassword#2026');
+ const a=s.createCommunity('A'),b=s.createCommunity('B');s.setMembership(admin,a,'admin');s.setMembership(owner,a,'owner');s.setMembership(outsider,b,'admin');
+ const unit=s.addUnit(admin,a,{code:'A-101',kind:'Casa',ownerUserId:owner}).id;
+ const charge=s.addCharge(admin,a,{unitId:unit,period:'2026-10',concept:'Cuota',amountMinor:20000}).id;
+ const payment=s.addPayment(admin,a,{unitId:unit,reference:'REF-001',concept:'Abono',amountMinor:5000}).id;
+ assert.equal(s.overview(admin,a).units[0].balanceMinor,15000);
+ assert.throws(()=>s.reverseEntry(owner,a,'payment',payment,'Reversión improcedente'),/Acceso no autorizado/);
+ assert.throws(()=>s.reverseEntry(admin,b,'payment',payment,'Pago de otra comunidad'),/Comunidad no disponible/);
+ assert.throws(()=>s.reverseEntry(admin,a,'payment',payment,'poco'),/10 caracteres/);
+ const reversed=s.reverseEntry(admin,a,'payment',payment,'Pago informado por error');
+ assert.ok(reversed.id);
+ let view=s.overview(admin,a);
+ assert.equal(view.units[0].balanceMinor,20000);
+ assert.equal(view.payments.length,1);
+ assert.equal(view.payments[0].reversed,1);
+ assert.equal(view.payments[0].reverseReason,'Pago informado por error');
+ assert.throws(()=>s.reverseEntry(admin,a,'payment',payment,'Intento de reverso repetido'),/ya reversado/);
+ s.reverseEntry(admin,a,'charge',charge,'Cuota creada por error');
+ view=s.overview(owner,a);
+ assert.equal(view.units[0].balanceMinor,0);
+ assert.equal(view.charges[0].reversed,1);
+ assert.equal(view.payments[0].reversed,1);
+ assert.equal(view.payments[0].reverseReason,null);
+ assert.ok(s.overview(admin,a).audit.some(x=>x.action==='charge.reversed'));
+ assert.ok(report(s,admin,a,'payments').includes('Anulado'));
+});

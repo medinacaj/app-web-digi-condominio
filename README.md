@@ -2,7 +2,7 @@
 
 Proyecto privado para diseñar y desarrollar una plataforma web de administración de condominios, comunidades y unidades inmobiliarias.
 
-> Estado al 25-10-2026: **prototipo web de interfaz en PR #9 (borrador)**, sin backend ni datos reales. El nombre comercial, jurisdicción inicial y stack de producción siguen pendientes.
+> Estado al 25-10-2026: **MVP local persistente implementado en PR #10 (borrador)**, sin despliegue de producción ni datos reales. País, marca y stack productivo pendientes.
 
 ## Inicio y continuidad
 
@@ -25,10 +25,25 @@ HTML, CSS y JavaScript sin dependencias; requiere Node.js 20+ para pruebas y Pyt
 
 ## Desarrollo
 
-**Interfaz de demostración navegable** (no software productivo), propuesta en [PR #9](https://github.com/medinacaj/app-web-digi-condominio/pull/9). Antes del backend: validar país, usuarios objetivo, MVP, arquitectura y criterios de aceptación.
+**Dos modos de desarrollo**: prototipo estático demostrativo (PR #9) y MVP local con autenticación y SQLite (PR #10). Antes de producción: validar país, usuarios, MVP, arquitectura, privacidad, respaldos y criterios de aceptación.
 
 El trabajo debe hacerse mediante ramas y pull requests, con issues, pruebas verificables y actualización de `ESTADO_ACTUAL.md`. Evitar cambios directos en `main`.
 
 ## Propiedad intelectual
 
 Repositorio privado. No se autoriza la redistribución del código, los diseños o documentación sin permiso del titular. No se ha concedido una licencia de código abierto.
+
+## MVP local 0.3.0 · PR #10
+
+Se implementó autenticación, sesiones revocables, aislamiento por comunidad y roles; unidades, cuotas, pagos manuales, proveedores, gastos, comunicados, fichas documentales, importación CSV local, exportaciones protegidas, auditoría de altas y anulaciones de movimientos con historial. **No apto para datos reales ni producción**.
+
+Instrucciones completas: [docs/MVP_LOCAL.md](docs/MVP_LOCAL.md). Requiere Node.js 22.16+ con `node:sqlite` experimental. Comprobación local: **24 pruebas superadas**; para producción siguen pendientes permisos definitivos, integraciones, revisiones legales y pruebas avanzadas.
+
+```bash
+# Configurar DIGI_ADMIN_EMAIL, DIGI_ADMIN_PASSWORD y DIGI_COMMUNITY_NAME sin versionarlos.
+npm run bootstrap
+npm start
+npm run check
+```
+
+No se han configurado usuarios ni contraseñas reales. Los tests usan identidades ficticias y bases de datos temporales.
