@@ -40,3 +40,9 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - Se añadieron pruebas `node --test`, pipeline de GitHub Actions de comprobación y documentación de limitaciones. Resultado local: 7/7 tests; archivos principales servidos HTTP 200.
 - Las cifras y comunidades son sintéticas. Prohibido usar datos reales o anunciar esta versión como sistema productivo.
 - PR #9 apunta a rama del PR #1; no se cambió `main`, visibilidad ni despliegues.
+
+## 2026-10-25 — corrección responsive y comprobación visual
+
+- El prototipo inicial generaba ancho adicional en vista móvil por columnas `1fr` con ancho mínimo implícito. Corregido usando `minmax(0,1fr)` en rejillas de dashboard y configuración.
+- Captura offline con Chromium verificó anchura del documento igual al viewport a 360, 390, 768 y 1440 px; prueba de búsqueda, navegación y creación de comunicado sin errores JS.
+- La navegación real mediante servidor HTTP en Chromium estuvo bloqueada por política del entorno; no se declara prueba end-to-end HTTP en navegador.
