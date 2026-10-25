@@ -27,11 +27,45 @@
     "INFORME_TRANSFERENCIA.md",
     "INVENTARIO_ARCHIVOS.json"
   ],
-  "app_source_files": [],
-  "tests": [],
-  "workflows": [],
+  "app_source_files": [
+    "index.html",
+    "src/demo-data.js",
+    "src/domain.js",
+    "src/main.js",
+    "src/ui.js",
+    "src/styles.css"
+  ],
+  "tests": [
+    "tests/domain.test.js"
+  ],
+  "workflows": [
+    ".github/workflows/checks.yml"
+  ],
   "production_deployments": "no_verificado",
   "source_sha256": "no_calculado",
   "imported_private_source_pdf": false,
-  "notes": "No tratar rutas propuestas como presentes en main antes de integrar el PR. Para inventario vigente volver a consultar la API GitHub."
+  "notes": "Archivo de inventario incluye documentación del PR #1 y propuesta web del PR #9. Ambas son ramas no fusionadas al corte; verificar estado actual de GitHub antes de reutilizar.",
+  "prototype_status": "implementado_en_rama_no_integrado_en_main",
+  "prototype_branch": "feat/prototipo-web-2026-10-25",
+  "prototype_pr": "https://github.com/medinacaj/app-web-digi-condominio/pull/9",
+  "prototype_paths": [
+    "index.html",
+    "package.json",
+    "src/demo-data.js",
+    "src/domain.js",
+    "src/main.js",
+    "src/ui.js",
+    "src/styles.css",
+    "tests/domain.test.js",
+    ".github/workflows/checks.yml",
+    "docs/PROTOTIPO_WEB.md"
+  ],
+  "local_verification": {
+    "node_syntax": "passed",
+    "tests_passed": 7,
+    "tests_failed": 0,
+    "http_static_smoke": "4 paths HTTP 200",
+    "remote_ci": "pending",
+    "browser_visual": "pending"
+  }
 }
