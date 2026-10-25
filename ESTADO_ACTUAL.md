@@ -12,7 +12,7 @@
 | Despliegue | No configurado | Sin evidencia de hosting o release |
 | Protección de rama | `main` sin protección | API GitHub `protected: false` |
 | Documentación de inicio | **Propuesta en rama de trabajo** | No contar como integrada hasta merge |
-| Backlog e issues | Preparación inicial | Consultar GitHub para el estado vigente |
+| Backlog e issues | 7 issues abiertos creados (#2–#8) | Ver enlaces en la sección siguiente |
 
 ## Riesgos inmediatos (orden sugerido)
 
@@ -31,3 +31,16 @@ P2: UI responsive, importación y piloto planificado.
 ## Convención de actualización
 
 Después de cada cambio: fecha/hora, issue, PR/commit, alcance, archivos, estado real, pruebas **ejecutadas** con resultado, bloqueos y siguiente acción. La fecha de inspección no debe convertirse en «fecha de despliegue».
+
+## Trazabilidad GitHub verificada al 25-10-2026
+
+- [PR #1 — Documentación de inicio (borrador)](https://github.com/medinacaj/app-web-digi-condominio/pull/1). No fusionado.
+- [Issue #2 — Jurisdicción y usuarios](https://github.com/medinacaj/app-web-digi-condominio/issues/2).
+- [Issue #3 — Privacidad/legal](https://github.com/medinacaj/app-web-digi-condominio/issues/3).
+- [Issue #4 — Alcance MVP](https://github.com/medinacaj/app-web-digi-condominio/issues/4).
+- [Issue #5 — Arquitectura multi-tenant](https://github.com/medinacaj/app-web-digi-condominio/issues/5).
+- [Issue #6 — Base técnica/CI](https://github.com/medinacaj/app-web-digi-condominio/issues/6).
+- [Issue #7 — Integridad financiera](https://github.com/medinacaj/app-web-digi-condominio/issues/7).
+- [Issue #8 — Acceso y protección intelectual](https://github.com/medinacaj/app-web-digi-condominio/issues/8).
+
+**Validación documental:** se comprobó por API que la rama contiene 12 archivos y que `INVENTARIO_ARCHIVOS.json` es JSON válido. No equivale a pruebas de software.
