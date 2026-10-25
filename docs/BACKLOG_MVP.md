@@ -69,3 +69,7 @@ Implementado en rama: asignar y quitar propietarios preexistentes a las unidades
 ## Continuidad de respaldos (PR #21)
 
 Implementados para entorno local: snapshots SQLite cifrados AES-GCM, restauración autenticada a destino nuevo, integrity_check y marca `user_version=3` del esquema conocido. **Sin completar:** política de rotación, custodia de claves, almacenamiento fuera de sitio, restauración operacional supervisada, RPO/RTO, auditoría del proceso, migraciones no triviales y backend estable para producción. No cerrar issue #14 por esta implementación parcial.
+
+## 2026-10-25 — v0.7.0 fusionada
+
+Módulos locales de incidencias, asignación de propietarios y respaldo cifrado (PR #17/#19/#21) están integrados en main y pasaron 40 pruebas Node y E2E Playwright de CI. **No se debe cerrar** el trabajo amplio de recuperación operacional (#14), seguridad de identidad (#13), cumplimiento (#3), accesibilidad (#12) ni despliegue. Siguen fuera del alcance adjuntos privados, conciliación, pagos, MFA, invitaciones y reglas según jurisdicción.

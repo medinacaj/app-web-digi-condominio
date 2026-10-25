@@ -36,3 +36,7 @@ Continuar revisando [PR #19](https://github.com/medinacaj/app-web-digi-condomini
 ## Continuidad tras v0.6.0
 
 Los PR #1, #9, #10, #11, #17 y #19 fueron fusionados. Revisar [PR #21](https://github.com/medinacaj/app-web-digi-condominio/pull/21) antes de atribuir v0.7.0 a `main`. Ejecutar `npm run check` y revisar `docs/RESPALDOS_CIFRADOS.md` para riesgos de copias y restauración. No use datos reales ni almacene una frase de cifrado en GitHub.
+
+## Estado confirmado de `main` al 25-10-2026
+
+Los PR #1, #9, #10, #11, #17, #19 y #21 fueron fusionados. Versión `package.json` **0.7.0**, 40/40 tests Node y GitHub Actions [40231797604](https://github.com/medinacaj/app-web-digi-condominio/actions/runs/40231797604) exitosa. Consulte `ESTADO_ACTUAL.md` como resumen vigente. El producto sigue siendo local y experimental; los issues legales y de seguridad no están resueltos.

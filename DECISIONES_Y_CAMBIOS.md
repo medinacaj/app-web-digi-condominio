@@ -100,3 +100,10 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - El respaldo en memoria limita SQLite a 100 MB. Temporales privados siguen pudiendo conservar rastros físicos; no sustituye backups operacionales ni custodia de claves.
 - Se añadieron pruebas de CLI, corrupción, contraseña incorrecta, persistencia y versiones: **40/40 locales**. Propuesta en PR #21, CI remoto/merge aún por confirmar.
 - Se confirmó integración previa v0.6.0 en `main` (PR #19) con CI success. Sin cambios de visibilidad ni despliegue.
+
+## 2026-10-25 — Integración oficial v0.7.0
+
+- PR #17 de incidencias, #19 de asignación web de propietarios y #21 de cifrado/restauración/versionado fueron **fusionados** y tienen tests y CI trazables.
+- `main` alcanzó `5e81640f1a570d1ecb957de8c871adbda9a77480` y run de GitHub Actions `40231797604` (**success**). 40 tests Node y navegador E2E directo exitosos.
+- Se mantuvo la visibilidad privada. No se han desplegado servicios ni cambiado accesos.
+- Seguridad productiva, país, marca, normativas, identidad y despliegue siguen **pendientes**, no aprobados.

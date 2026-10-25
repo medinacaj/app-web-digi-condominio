@@ -1,32 +1,44 @@
 # Digi-Condominio
 
-**Estado al 25-10-2026:** Aplicación web y backend local privado **v0.6.0 integrados en main**. Versión **0.7.0 en revisión** en [PR #21](https://github.com/medinacaj/app-web-digi-condominio/pull/21): respaldo SQLite cifrado y control del esquema. **No es un SaaS publicado ni apto para datos reales.**
+**Versión integrada:** v0.7.0 (25 de octubre de 2026). Aplicación web y backend local de gestión de condominios, con código **privado** en [GitHub](https://github.com/medinacaj/app-web-digi-condominio).
 
-## Funcionalidades desarrolladas y fusionadas
-- App web responsive con navegación, formularios y consultas por rol; login scrypt y sesiones revocables.
-- Comunidades aisladas, unidades, propietarios vinculados desde la web, cuotas, pagos manuales, anulaciones auditables y saldos.
-- Proveedores, gastos, reportes CSV, avisos, metadatos documentales e importación CSV local.
-- Incidencias residenciales por área común/unidad, seguimiento con comentarios y estados, controles por rol y comunidad.
-- CI GitHub Actions con pruebas Node y Playwright de navegador contra API HTTP real. Las versiones 0.5 y 0.6 se integraron en PR #17 y #19.
+**IMPORTANTE:** MVP experimental local, **NO** publicado en Internet ni apto todavía para datos reales de residentes. La conformidad legal, arquitectura productiva y mercado inicial siguen pendientes.
 
-## Requisitos para ejecutar localmente
-Node.js 22.16+ y navegador moderno. `node:sqlite` **experimental**.
+## Funcionalidades implementadas en `main`
+
+- App web adaptable con panel administrativo, búsqueda, módulos por rol y sesiones autenticadas.
+- Comunidades y unidades con aislamiento de acceso; asociación de propietarios desde la web e historial de asignaciones.
+- Cuotas, pagos manuales, saldos, anulaciones auditables, proveedores, gastos, avisos y registros de documentos (solo metadatos, **sin adjuntos**).
+- Incidencias residenciales por unidad/área común, estados, comentarios y seguimiento auditable.
+- Importación de unidades desde CSV mediante CLI, exportación administrativa CSV protegida contra fórmulas.
+- Copias locales SQLite cifradas con AES-256-GCM, restauración autenticada y control `user_version=3` del esquema conocido.
+- Tests Node y navegador Playwright contra backend HTTP real en GitHub Actions.
+
+## Iniciar la aplicación local
+
+Requisitos: Node.js **22.16+** y navegador moderno. `node:sqlite` es experimental.
 
 ```bash
-# Establezca en su terminal: DIGI_ADMIN_EMAIL, DIGI_ADMIN_PASSWORD, DIGI_COMMUNITY_NAME
+# Definir directamente en terminal:
+# DIGI_ADMIN_EMAIL, DIGI_ADMIN_PASSWORD, DIGI_COMMUNITY_NAME
 npm run bootstrap
-npm start                  # http://127.0.0.1:4173
-npm run check              # tests Node y sintaxis
+npm start
+# Visitar http://127.0.0.1:4173
+npm run check
 ```
 
-Para prueba visual sin servidor persistente: `npm run serve` (Python 3) usa solo datos sintéticos. No ejecute ambos servidores en el mismo puerto.
+Alternativa de vista demostrativa sin base persistente: `npm run serve` (requiere Python 3). No ejecutar simultáneamente ambos servidores en el mismo puerto.
 
-En v0.7.0 propuesta: `npm run backup:secure` y `npm run restore:secure` requieren frase secreta privada y rutas nuevas. Consulte [docs/RESPALDOS_CIFRADOS.md](docs/RESPALDOS_CIFRADOS.md) antes de usarlos.
+Respaldos cifrados: `npm run backup:secure`, `npm run restore:secure` después de consultar [docs/RESPALDOS_CIFRADOS.md](docs/RESPALDOS_CIFRADOS.md). No pegar secretos en GitHub.
 
-## Documentación permanente
-- [Estado de implementación](ESTADO_ACTUAL.md) · [Inicio y reanudación](README_INICIAR_AQUI.md) · [Contexto](CONTEXTO_MAESTRO.md).
-- [Manual de desarrollo local](docs/MVP_LOCAL.md) · [Incidencias](docs/INCIDENCIAS.md) · [Asignación de propietarios](docs/ASIGNACIONES.md).
-- [Backlog](docs/BACKLOG_MVP.md) · [Seguridad](SECURITY.md) · [Decisiones](DECISIONES_Y_CAMBIOS.md).
+## Fuentes de verdad y seguimiento
 
-## Límites
-Repositorio privado, sin licencia abierta. No exponer el servidor local a Internet, no publicar bases SQLite, secretos ni datos de residentes. Faltan selección y validación de jurisdicción, gestión de identidad/invitaciones/MFA, adjuntos, despliegue con infraestructura segura, revisión de protección de datos, pagos integrados, retención y auditoría independiente.
+[ESTADO_ACTUAL.md](ESTADO_ACTUAL.md) · [CONTEXTO_MAESTRO.md](CONTEXTO_MAESTRO.md) · [README_INICIAR_AQUI.md](README_INICIAR_AQUI.md) · [DECISIONES_Y_CAMBIOS.md](DECISIONES_Y_CAMBIOS.md) · [SECURITY.md](SECURITY.md)
+
+[Guía del MVP](docs/MVP_LOCAL.md) · [Incidencias](docs/INCIDENCIAS.md) · [Propietarios](docs/ASIGNACIONES.md) · [Respaldos](docs/RESPALDOS_CIFRADOS.md) · [Backlog](docs/BACKLOG_MVP.md).
+
+## Validación y alcance
+
+**40 pruebas Node** y el trabajo E2E de navegador aprobados en GitHub Actions de `main` (run [40231797604](https://github.com/medinacaj/app-web-digi-condominio/actions/runs/40231797604)). Esto **no** equivale a certificación de seguridad, legalidad, disponibilidad o producción.
+
+Faltan validación de jurisdicción y datos, onboarding/MFA, archivos adjuntos privados, permisos normativos detallados, backend productivo estable, RPO/RTO, auditoría independiente, SEO y despliegue seguro. Repositorio `main` no tiene protección de rama nativa verificada: issue #8. No cambiar visibilidad ni otorgar acceso externo sin autorización.
