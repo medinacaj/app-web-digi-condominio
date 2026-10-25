@@ -53,3 +53,10 @@ Después de cada cambio: fecha/hora, issue, PR/commit, alcance, archivos, estado
 - **Pruebas realmente ejecutadas:** `npm run check` en Node.js 22.16.0; 7 pruebas superadas y sintaxis válida. Servidor Python respondió HTTP 200 para index.html, main.js, ui.js y styles.css.
 - **No verificado aún:** renderizado manual en navegadores reales, accesibilidad exhaustiva, CI remoto, backend, autenticación, integridad financiera de producción y despliegues.
 - **Siguiente acción:** revisar PR #1 y luego PR #9; registrar validación visual en escritorio/móvil; acordar jurisdicción y alcance MVP; preparar backend sólo cuando se apruebe modelo de roles/seguridad.
+
+## Verificación visual adicional (2026-10-25)
+
+- Chromium sin acceso directo a direcciones HTTP por política del entorno; se construyó una versión temporal de inspección **offline** con los mismos scripts y CSS, inyectados en una página sin red.
+- En esa inspección: panel con cuatro KPI; navegación, búsqueda de unidades, creación temporal de comunicado y menú móvil respondieron correctamente, sin errores JS.
+- Se detectó y corrigió desbordamiento horizontal de CSS en pantallas pequeñas. Anchos de documento confirmados iguales al viewport a **360, 390, 768 y 1440 px** en el entorno offline.
+- Limitación: esto **no** valida el despliegue real, carga de módulos ES desde HTTP, integración externa ni accesibilidad integral. El servidor estático respondió 200 para rutas básicas en comprobación aparte.
