@@ -112,3 +112,9 @@ Nuevo módulo de seguimiento de incidencias con comentarios, estados, roles y ai
 Validación local: `npm run check` con 32 tests superados; `python3 tests/browser-e2e.py` con Playwright y puente Node para esquivar la política de navegador en este entorno, incluyendo login, reportes, cambios y anulación XSS. El workflow añade una prueba **directa** de navegador y servidor en GitHub Actions que debe verificarse tras el push.
 
 Es funcionalidad local; no hay adjuntos ni publicaciones externas. La configuración de variables se documenta en `.env.example` sin valores secretos.
+
+## Iteración v0.6.0 — Asociación de propietarios desde la web
+
+Los administradores pueden acceder a **Unidades → Cambiar** para asignar o quitar un propietario de su comunidad previamente creado con `npm run add-user`. La API y base de datos conservan historial y auditan el cambio en la misma transacción, con acceso denegado entre comunidades; ver [ASIGNACIONES.md](ASIGNACIONES.md). Los formularios y la navegación se reinician al cambiar de sesión.
+
+Pruebas locales de esta iteración: **35/35 tests Node**, además de flujo Chromium con backend real mediante puente de entorno. No afirmar aprobación de CI hasta comprobar el job directo de GitHub.

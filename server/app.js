@@ -55,6 +55,17 @@ export function createApp(store){
         if(pathname==='/api/session' && req.method==='GET')return send(res,200,{user});
         if(pathname==='/api/logout' && req.method==='POST'){store.logout(token);return send(res,200,{ok:true});}
         if(pathname==='/api/communities' && req.method==='GET')return send(res,200,{communities:store.communitiesFor(user.id)});
+        const ownerMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/units\/([a-zA-Z0-9-]{36})\/owner$/.exec(pathname);
+        if(ownerMatch){
+          if(req.method!=='PATCH')throw new Problem(405,'Método no permitido');
+          const data=await body(req);
+          return send(res,200,store.assignUnitOwner(user.id,ownerMatch[1],ownerMatch[2],data.ownerUserId));
+        }
+        const membersMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/members$/.exec(pathname);
+        if(membersMatch){
+          if(req.method!=='GET')throw new Problem(405,'Método no permitido');
+          return send(res,200,{members:store.membersFor(user.id,membersMatch[1])});
+        }
         const incidentMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/incidents\/([a-zA-Z0-9-]{36})\/(comments|status)$/.exec(pathname);
         if(incidentMatch){
           const [,communityId,incidentId,action]=incidentMatch;

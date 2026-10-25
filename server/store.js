@@ -100,6 +100,13 @@ export class Store {
         amount_minor INTEGER NOT NULL CHECK(amount_minor>0), created_at TEXT NOT NULL,
         FOREIGN KEY(provider_id,community_id) REFERENCES providers(id,community_id)
       );
+      CREATE TABLE IF NOT EXISTS unit_owner_events (
+        id TEXT PRIMARY KEY,community_id TEXT NOT NULL,unit_id TEXT NOT NULL,
+        old_owner_user_id TEXT REFERENCES users(id),new_owner_user_id TEXT REFERENCES users(id),
+        actor_user_id TEXT NOT NULL REFERENCES users(id),created_at TEXT NOT NULL,
+        FOREIGN KEY(unit_id,community_id) REFERENCES units(id,community_id)
+      );
+      CREATE INDEX IF NOT EXISTS ix_unit_owner_events ON unit_owner_events(community_id,unit_id,created_at);
       CREATE TABLE IF NOT EXISTS incidents (
         id TEXT PRIMARY KEY, community_id TEXT NOT NULL REFERENCES communities(id),
         unit_id TEXT, created_by TEXT NOT NULL REFERENCES users(id),
@@ -227,7 +234,34 @@ export class Store {
       FROM expenses e JOIN providers p ON p.id=e.provider_id WHERE e.community_id=? ORDER BY e.created_at DESC`), communityId) : [];
     const audit = role === 'admin' ? rows(this.db.prepare(`SELECT id,action,entity_id entityId,created_at createdAt FROM audit_events WHERE community_id=? ORDER BY created_at DESC LIMIT 40`), communityId) : [];
     const incidents = this.incidentsFor(userId,communityId);
-    return { role, communityId, units, charges, payments, announcements, documents, providers, expenses, incidents, audit };
+    const ownerChanges = role==='admin' ? rows(this.db.prepare(`SELECT e.id,e.unit_id unitId,u.code unit,
+      prior.display_name previousOwner,actual.display_name newOwner,e.created_at createdAt
+      FROM unit_owner_events e JOIN units u ON u.id=e.unit_id AND u.community_id=e.community_id
+      LEFT JOIN users prior ON prior.id=e.old_owner_user_id LEFT JOIN users actual ON actual.id=e.new_owner_user_id
+      WHERE e.community_id=? ORDER BY e.created_at DESC,e.rowid DESC LIMIT 50`),communityId) : [];
+    return { role, communityId, units, charges, payments, announcements, documents, providers, expenses, incidents, ownerChanges, audit };
+  }
+  membersFor(userId,communityId){
+    this.requireAdmin(userId,communityId);
+    return rows(this.db.prepare(`SELECT u.id,u.display_name displayName,u.email,m.role
+      FROM memberships m JOIN users u ON u.id=m.user_id
+      WHERE m.community_id=? ORDER BY m.role,u.display_name`),communityId);
+  }
+  assignUnitOwner(userId,communityId,unitId,ownerUserId){
+    this.requireAdmin(userId,communityId);
+    if(typeof unitId!=='string'||!VALID.test(unitId))throw new Problem(404,'Unidad no disponible');
+    const unit=this.db.prepare('SELECT owner_user_id FROM units WHERE id=? AND community_id=?').get(unitId,communityId);
+    if(!unit)throw new Problem(404,'Unidad no disponible');
+    const newOwner=ownerUserId==null||ownerUserId===''?null:requireText(ownerUserId,'Propietario',80);
+    if(newOwner&&!this.db.prepare(`SELECT 1 FROM memberships WHERE user_id=? AND community_id=? AND role='owner'`).get(newOwner,communityId))
+      throw new Problem(400,'Propietario no válido en esta comunidad');
+    if(unit.owner_user_id===newOwner)throw new Problem(409,'La unidad ya tiene esa asignación');
+    const eventId=randomUUID();
+    this.writeAudited(userId,communityId,'unit.owner_changed',unitId,()=>{
+      this.db.prepare('UPDATE units SET owner_user_id=? WHERE id=? AND community_id=?').run(newOwner,unitId,communityId);
+      this.db.prepare('INSERT INTO unit_owner_events VALUES (?,?,?,?,?,?,?)').run(eventId,communityId,unitId,unit.owner_user_id,newOwner,userId,dateNow());
+    });
+    return {id:eventId};
   }
   unitIsIn(communityId, unitId) {
     return Boolean(this.db.prepare('SELECT id FROM units WHERE community_id=? AND id=?').get(communityId, unitId));

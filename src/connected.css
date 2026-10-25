@@ -25,3 +25,8 @@
 .incident-entry p{margin:5px 0;color:#55647a;white-space:pre-wrap;overflow-wrap:anywhere}
 .incident-entry small{color:#77849a}.incident-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:17px}
 .incident-actions button{font-size:12px}
+
+/* Vinculación de propietario a unidad */
+.owner-display{display:inline-block;max-width:170px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.owner-link{margin-left:8px;border:0;background:#edf2ff;color:#365bc1;border-radius:7px;padding:6px 9px;font-size:11px;font-weight:700}
+.owner-link:hover{background:#dfe8ff}
