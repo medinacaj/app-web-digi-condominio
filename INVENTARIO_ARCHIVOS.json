@@ -38,7 +38,10 @@
   "tests": [
     "tests/domain.test.js",
     "tests/store.test.js",
-    "tests/http.test.js"
+    "tests/http.test.js",
+    "tests/report.test.js",
+    "tests/backup.test.js",
+    "tests/import.test.js"
   ],
   "workflows": [
     ".github/workflows/checks.yml"
@@ -63,11 +66,13 @@
     "docs/PROTOTIPO_WEB.md"
   ],
   "local_verification": {
-    "tests_passed": 17,
+    "tests_passed": 23,
     "tests_failed": 0,
     "http_api": "tested",
     "browser_offline": "tested_with_mock_api",
     "browser_real_http": "blocked_by_environment",
+    "backup_restore": "tested",
+    "csv_import_transaction": "tested",
     "production_deployed": false
   },
   "local_mvp_branch": "feat/mvp-local-seguro-2026-10-25",
@@ -83,6 +88,14 @@
     "server/bootstrap.js",
     "tests/store.test.js",
     "tests/http.test.js",
-    "docs/MVP_LOCAL.md"
-  ]
+    "docs/MVP_LOCAL.md",
+    "server/report.js",
+    "server/backup.js",
+    "server/add-user.js",
+    "server/import-csv.js",
+    "tests/report.test.js",
+    "tests/backup.test.js",
+    "tests/import.test.js"
+  ],
+  "app_version": "0.3.0"
 }
