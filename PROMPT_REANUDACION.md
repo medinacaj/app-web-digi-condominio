@@ -11,3 +11,6 @@ Trabaja con el repositorio privado `medinacaj/app-web-digi-condominio`; verifica
 7. Antes de programar lógica jurisdiccional, confirma país inicial, reglas, modelo financiero y alcance aprobado.
 
 Siguiente paso del paquete inicial: revisar PR #1 y PR #9 (prototipo web), validar visualmente y continuar issues #2–#8. El prototipo usa sólo datos ficticios. No integrar, publicar ni conectar producción automáticamente. Esta nota no reemplaza la inspección de GitHub en tiempo real.
+
+
+Actualización 2026-10-25: revisar en orden PR #1 (documentación), PR #9 (interfaz demo), PR #10 (MVP local con SQLite/auth); identificar las ramas efectivamente fusionadas antes de continuar. El prototipo MVP local solo debe ejecutarse en loopback, no usarse con datos reales. Revisar `docs/MVP_LOCAL.md`, tests y los controles de seguridad pendientes. No afirmar que CI o despliegue pasaron si no fueron comprobados.
