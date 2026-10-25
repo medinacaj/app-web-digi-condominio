@@ -33,10 +33,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Preparar Chromium para pruebas (datos sintéticos)
+      - name: Usar Chrome preinstalado y Playwright (sin descargar navegador)
         run: |
+          command -v google-chrome || command -v google-chrome-stable || command -v chromium
           python -m pip install --disable-pip-version-check playwright==1.56.0
-          python -m playwright install --with-deps chromium
       - name: Comprobar app web contra backend HTTP real
         env:
           DIGI_E2E_MODE: direct
