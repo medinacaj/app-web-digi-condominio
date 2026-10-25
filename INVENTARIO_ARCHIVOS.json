@@ -41,7 +41,8 @@
     "tests/http.test.js",
     "tests/report.test.js",
     "tests/backup.test.js",
-    "tests/import.test.js"
+    "tests/import.test.js",
+    "tests/reversal.test.js"
   ],
   "workflows": [
     ".github/workflows/checks.yml"
@@ -66,14 +67,16 @@
     "docs/PROTOTIPO_WEB.md"
   ],
   "local_verification": {
-    "tests_passed": 23,
+    "tests_passed": 24,
     "tests_failed": 0,
     "http_api": "tested",
     "browser_offline": "tested_with_mock_api",
     "browser_real_http": "blocked_by_environment",
     "backup_restore": "tested",
     "csv_import_transaction": "tested",
-    "production_deployed": false
+    "production_deployed": false,
+    "reversals": "tested",
+    "github_actions_initial_v04": "success"
   },
   "local_mvp_branch": "feat/mvp-local-seguro-2026-10-25",
   "local_mvp_pr": "https://github.com/medinacaj/app-web-digi-condominio/pull/10",
@@ -95,7 +98,8 @@
     "server/import-csv.js",
     "tests/report.test.js",
     "tests/backup.test.js",
-    "tests/import.test.js"
+    "tests/import.test.js",
+    "tests/reversal.test.js"
   ],
-  "app_version": "0.3.0"
+  "app_version": "0.4.0"
 }
