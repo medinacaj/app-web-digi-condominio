@@ -26,7 +26,7 @@ Leer también `INVENTARIO_ARCHIVOS.json`, `INFORME_TRANSFERENCIA.md` y `PROMPT_R
 
 ## Arranque mínimo
 
-1. Verificar el estado actual de GitHub y el alcance exacto del PR de documentación.
+1. Verificar GitHub y revisar PR #1 (documentación) y PR #9 (interfaz, dependiente de #1), sin asumir que ya están fusionados.
 2. Confirmar/validar jurisdicción inicial, usuarios objetivo y núcleo de negocio; no asumir que una referencia a «CondoTech Venezuela» define el lanzamiento.
 3. Cerrar el MVP propuesto con criterios de aceptación por flujo.
 4. Seleccionar arquitectura con decisión registrada; crear primer esqueleto mediante PR.
@@ -36,3 +36,7 @@ Leer también `INVENTARIO_ARCHIVOS.json`, `INFORME_TRANSFERENCIA.md` y `PROMPT_R
 ## Restricciones
 
 No incorporar datos reales de residentes, comprobantes o credenciales al repositorio. No inventar despliegues, integraciones ni pruebas. Mantener propietario y acceso exclusivo; revisar permisos de aplicaciones conectadas periódicamente.
+
+## Primer prototipo (PR #9)
+
+Interfaz web local propuesta en `feat/prototipo-web-2026-10-25`. Documentación en `docs/PROTOTIPO_WEB.md`. Para verificar: `npm run check`; para abrir desde un servidor HTTP: `npm run serve`. No usar datos reales: no existe autenticación ni backend. Resultado comprobado localmente: 7/7 tests y rutas básicas HTTP 200; validación visual/CI pendiente.
