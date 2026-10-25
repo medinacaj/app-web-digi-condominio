@@ -19,3 +19,7 @@ Para reportar riesgos: crear un issue privado únicamente si **no** revela secre
 Se implementan hash scrypt de contraseñas con salt, tokens de sesión aleatorios hasheados con expiración, autorización por comunidad y rol del lado del servidor, control de acceso por unidad, SQL parametrizado, rutas públicas estáticas enumeradas, límites de cuerpos HTTP, HTTP de escucha exclusivamente en loopback, encabezados de seguridad, CSV protegido de fórmulas, saldos derivados y auditoría de altas. Se usan importes enteros en unidades menores.
 
 **Pendiente crítico antes de operar:** revisión de seguridad independiente, HTTPS/cookies seguras/MFA según arquitectura final, recuperación de cuentas, licenciamiento y retención de datos, auditoría de accesos, respaldo cifrado y restauración supervisada, gestión de adjuntos con análisis antivirus, protección ante abuso y monitoreo, controles legales locales. No adjuntar datos reales en GitHub.
+
+### Anulación de movimientos v0.4.0
+
+La administración anula registros financieros con motivo obligatorio y registro inmutable; la base de datos impide segunda anulación del mismo movimiento. Los saldos excluyen anulaciones. Se requiere revisión legal antes de atribuir efectos contables o jurídicos a estas anotaciones.
