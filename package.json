@@ -1,0 +1,13 @@
+{
+  "name": "digi-condominio-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prototipo web local y sin backend para Digi-Condominio",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/main.js && node --check src/domain.js && node --check src/demo-data.js && node --check src/ui.js && npm test",
+    "serve": "python3 -m http.server 4173"
+  },
+  "engines": {"node": ">=20"}
+}

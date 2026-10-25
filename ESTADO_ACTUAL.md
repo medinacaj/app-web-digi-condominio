@@ -5,10 +5,10 @@
 | Frente | Estado | Evidencia |
 |---|---|---|
 | Repositorio GitHub | Existente, privado | Metadatos de GitHub |
-| Código fuente | No iniciado | Inventario inicial de `main` |
+| Código fuente | Interfaz web 0.1.0 propuesta en PR #9 | Rama `feat/prototipo-web-2026-10-25`; `main` aún sin código |
 | Producto/MVP | Hipótesis documentadas, sin aprobación definitiva | Contexto de referencia y esta propuesta |
-| Arquitectura/stack | No seleccionado | Sin archivos de proyecto |
-| CI/pruebas | No implementados | Sin workflows ni tests |
+| Arquitectura/stack | HTML/CSS/JS nativo para prototipo; producción pendiente | PR #9 y `docs/PROTOTIPO_WEB.md` |
+| CI/pruebas | Workflow y 7 tests creados en rama; 7/7 ejecutados localmente | `npm run check`; CI remoto pendiente de verificar |
 | Despliegue | No configurado | Sin evidencia de hosting o release |
 | Protección de rama | `main` sin protección | API GitHub `protected: false` |
 | Documentación de inicio | **Propuesta en rama de trabajo** | No contar como integrada hasta merge |
@@ -44,3 +44,23 @@ Después de cada cambio: fecha/hora, issue, PR/commit, alcance, archivos, estado
 - [Issue #8 — Acceso y protección intelectual](https://github.com/medinacaj/app-web-digi-condominio/issues/8).
 
 **Validación documental:** se comprobó por API que la rama contiene 12 archivos y que `INVENTARIO_ARCHIVOS.json` es JSON válido. No equivale a pruebas de software.
+
+## 2026-10-25 — Primer prototipo web, fase 0 (verificado en rama)
+
+- [PR #9 — Prototipo web (borrador)](https://github.com/medinacaj/app-web-digi-condominio/pull/9). **Base:** rama de documentación del PR #1. No fusionado con `main` ni desplegado.
+- Commit inicial de UI: `35277bfaa7ef226e5d93efeabac28aa1212974ef`.
+- Módulos visibles: resumen, comunidades, unidades, finanzas, comunicados, documentos y configuración. Todos con datos ficticios; acciones demostrativas no persisten.
+- **Pruebas realmente ejecutadas:** `npm run check` en Node.js 22.16.0; 7 pruebas superadas y sintaxis válida. Servidor Python respondió HTTP 200 para index.html, main.js, ui.js y styles.css.
+- **No verificado aún:** renderizado manual en navegadores reales, accesibilidad exhaustiva, CI remoto, backend, autenticación, integridad financiera de producción y despliegues.
+- **Siguiente acción:** revisar PR #1 y luego PR #9; registrar validación visual en escritorio/móvil; acordar jurisdicción y alcance MVP; preparar backend sólo cuando se apruebe modelo de roles/seguridad.
+
+## Verificación visual adicional (2026-10-25)
+
+- Chromium sin acceso directo a direcciones HTTP por política del entorno; se construyó una versión temporal de inspección **offline** con los mismos scripts y CSS, inyectados en una página sin red.
+- En esa inspección: panel con cuatro KPI; navegación, búsqueda de unidades, creación temporal de comunicado y menú móvil respondieron correctamente, sin errores JS.
+- Se detectó y corrigió desbordamiento horizontal de CSS en pantallas pequeñas. Anchos de documento confirmados iguales al viewport a **360, 390, 768 y 1440 px** en el entorno offline.
+- Limitación: esto **no** valida el despliegue real, carga de módulos ES desde HTTP, integración externa ni accesibilidad integral. El servidor estático respondió 200 para rutas básicas en comprobación aparte.
+
+## CI remoto GitHub Actions (2026-10-25)
+
+La ejecución `40224344777` del workflow **Comprobaciones del prototipo**, asociada al PR #9, terminó con estado `completed` y conclusión **success**. Esto valida los pasos automatizados configurados de sintaxis y pruebas unitarias, no despliegue ni seguridad productiva.
