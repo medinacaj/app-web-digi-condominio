@@ -47,3 +47,7 @@ Para permitir un inicio sin añadir integraciones, el primer prototipo se realiz
 ## Evidencia
 
 Tests de lógica bajo `tests/domain.test.js`; registrar el resultado real de `npm run check` y del CI antes del merge. El código está sujeto a revisión en PR, no a despliegue público.
+
+## Pruebas de interacción realizadas en esta fase
+
+Se ejecutaron pruebas en Chromium con un ensamblado **temporal offline** de los mismos archivos CSS y JS (sin conexiones de red): captura de escritorio/móvil, navegación entre módulos, filtro de búsqueda, creación temporal de un comunicado y menú móvil. No hubo errores JS. Se corrigió un desbordamiento y se confirmó ancho correcto a 360/390/768/1440 px. El Chromium del entorno bloqueó la navegación HTTP; las rutas HTTP fueron comprobadas por separado con Python, por lo que sigue pendiente una prueba integral de módulos ES en navegador servido y una evaluación de accesibilidad.
