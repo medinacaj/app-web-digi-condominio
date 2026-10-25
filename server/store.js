@@ -40,7 +40,10 @@ export class Store {
     if (location !== ':memory:') mkdirSync(dirname(location), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(location);
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
-    this.db.exec(`
+    const dbVersion=this.db.prepare('PRAGMA user_version').get().user_version;
+    if(dbVersion>3){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
+    this.db.exec('BEGIN IMMEDIATE');
+    try{this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
         password_hash TEXT NOT NULL, created_at TEXT NOT NULL
@@ -142,6 +145,9 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
+      this.db.exec('PRAGMA user_version=3');
+      this.db.exec('COMMIT');
+    }catch(error){this.db.exec('ROLLBACK');this.db.close();throw error;}
   }
   close() { this.db.close(); }
   countUsers() { return this.db.prepare('SELECT COUNT(*) n FROM users').get().n; }

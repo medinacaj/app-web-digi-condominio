@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync,rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { Store } from '../server/store.js';
+
+test('versiona una base existente sin eliminar unidades, cuotas ni incidencias',t=>{
+  const root=mkdtempSync(join(tmpdir(),'digi-version-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
+  const file=join(root,'version.sqlite');
+  let s=new Store(file);
+  const admin=s.createUser('version@example.test','VeryStrongPassword#2026');
+  const c=s.createCommunity('Comunidad de versiones');s.setMembership(admin,c,'admin');
+  const unit=s.addUnit(admin,c,{code:'101',kind:'Casa'}).id;
+  s.addCharge(admin,c,{unitId:unit,period:'2026-10',concept:'Cuota',amountMinor:4000});
+  s.addIncident(admin,c,{title:'Prueba de persistencia',detail:'Sin pérdida de reportes',category:'other'});
+  s.db.exec('PRAGMA user_version=0');s.close();
+  s=new Store(file);t.after(()=>s.close());
+  assert.equal(s.db.prepare('PRAGMA user_version').get().user_version,3);
+  assert.equal(s.overview(admin,c).units[0].balanceMinor,4000);
+  assert.equal(s.incidentsFor(admin,c).length,1);
+});
+
+test('rehúsa abrir una base con esquema de una versión futura',t=>{
+  const root=mkdtempSync(join(tmpdir(),'digi-future-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
+  const file=join(root,'future.sqlite');
+  const db=new DatabaseSync(file);db.exec('PRAGMA user_version=99');db.close();
+  assert.throws(()=>new Store(file),/versión más reciente/);
+  const reopened=new DatabaseSync(file,{readOnly:true});t.after(()=>reopened.close());
+  assert.equal(reopened.prepare('PRAGMA user_version').get().user_version,99);
+});

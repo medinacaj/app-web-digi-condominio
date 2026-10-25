@@ -40,3 +40,7 @@ coverage/
 Thumbs.db
 .idea/
 .vscode/
+
+# Respaldo cifrado y restauraciones temporales
+*.dcb
+.digi-restore-*/

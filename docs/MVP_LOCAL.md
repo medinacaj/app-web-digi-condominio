@@ -118,3 +118,9 @@ Es funcionalidad local; no hay adjuntos ni publicaciones externas. La configurac
 Los administradores pueden acceder a **Unidades → Cambiar** para asignar o quitar un propietario de su comunidad previamente creado con `npm run add-user`. La API y base de datos conservan historial y auditan el cambio en la misma transacción, con acceso denegado entre comunidades; ver [ASIGNACIONES.md](ASIGNACIONES.md). Los formularios y la navegación se reinician al cambiar de sesión.
 
 Pruebas locales de esta iteración: **35/35 tests Node**, además de flujo Chromium con backend real mediante puente de entorno. No afirmar aprobación de CI hasta comprobar el job directo de GitHub.
+
+## Iteración v0.7.0 — Respaldo cifrado y esquema versionado
+
+Se añadieron comandos `npm run backup:secure` y `npm run restore:secure`, con variables `DIGI_BACKUP_PATH`, `DIGI_RESTORE_SOURCE`, `DIGI_RESTORE_PATH` y `DIGI_BACKUP_PASSPHRASE` definidas en el entorno privado. Se rechaza la sobrescritura del destino, se verifica integridad del SQLite, se autentica el archivo cifrado mediante AES-GCM y se exige frase larga. Ver [RESPALDOS_CIFRADOS.md](RESPALDOS_CIFRADOS.md) para límites, riesgos de temporales y ausencia de continuidad operacional de producción.
+
+También se agregó `PRAGMA user_version=3` con inicialización transaccional para el esquema conocido; no permite abrir una base con versión futura. **No implica soporte a migraciones arbitrarias**.
