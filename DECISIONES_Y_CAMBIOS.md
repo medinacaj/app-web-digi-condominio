@@ -55,3 +55,10 @@ Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alte
 - Se corrigió error de cantidad de parámetros en INSERT de pagos detectado en primera corrida de tests (15/16 → 16/16) y se añadió persistencia con reinicio (17/17).
 - Chromium visual offline con API simulada validó interfaz y flujo básico; HTTP navegador está bloqueado por el entorno.
 - PR #10 depende del PR #9 y conserva el repositorio privado; no se publica ni fusiona sin revisar.
+
+## 2026-10-25 — Más avances funcionales en PR #10
+
+- Implementados proveedores/gastos, CSV UTF-8 protegido de inyección de fórmulas, respaldo online SQLite con validación, importación CSV de unidades con previsualización y rollback, y aprovisionamiento de usuarios por CLI con rol por comunidad.
+- Se mantuvo la restricción a acceso local `127.0.0.1`, sin servicios externos, permisos reales, ni publicación. El sistema continúa como MVP experimental, no liberación productiva.
+- Al 25-10-2026 `npm run check` pasó **23 de 23 tests**. No se certifica seguridad con ello.
+- El PR #10 es dependiente del #9 y del #1. Las decisiones de país, cumplimiento legal, credenciales productivas, infraestructura y marca permanecen pendientes.
