@@ -1,4 +1,4 @@
-name: Comprobaciones del prototipo
+name: Comprobaciones Digi-Condominio
 on:
   pull_request:
   push:
@@ -8,7 +8,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
@@ -16,5 +16,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Comprobar sintaxis y lógica
+      - name: Comprobar sintaxis y pruebas
         run: npm run check
