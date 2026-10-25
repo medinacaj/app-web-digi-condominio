@@ -25,3 +25,10 @@
 ## Registro para decisiones futuras
 
 Formato: fecha | identificador | propuesta o decisión | fuente | motivos | alternativas | impacto | issue/PR | validación.
+
+## 2026-10-25 — seguimiento creado en GitHub (verificado)
+
+- PR de documentación **#1** creado en estado borrador y no fusionado con `main`.
+- Se crearon siete issues abiertos **#2–#8**: jurisdicción, privacidad, MVP, arquitectura, infraestructura y CI, integridad financiera, y protección de accesos.
+- La rama contiene 12 archivos documentales; el manifiesto JSON fue leído y parseado correctamente. No se realizaron tests funcionales ni despliegues.
+- Próxima acción: revisar documentos del PR, acordar qué propuestas se aprueban y trabajar issues por prioridad.
