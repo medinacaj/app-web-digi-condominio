@@ -1,6 +1,6 @@
 {
   "name": "digi-condominio-web",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "Interfaz web y backend local con SQLite, autenticación y aislamiento de comunidades",
@@ -12,7 +12,8 @@
     "bootstrap": "node server/bootstrap.js",
     "backup": "node server/backup.js",
     "add-user": "node server/add-user.js",
-    "import-units": "node server/import-csv.js"
+    "import-units": "node server/import-csv.js",
+    "test:browser": "python3 tests/browser-e2e.py"
   },
   "engines": {
     "node": ">=22.16.0"

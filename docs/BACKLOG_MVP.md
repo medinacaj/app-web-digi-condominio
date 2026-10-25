@@ -57,3 +57,7 @@ Objetivo, contexto, criterios de aceptación comprobables, seguridad/privacidad 
 **No implementado o no aprobado:** carga/descarga segura de archivos, control de acceso de comité según normativa local, MFA, recuperación de cuentas, invitaciones autenticadas, XLSX, migraciones de esquema y auditoría independiente, integraciones bancarias/pagos, sistema de notificaciones, backups cifrados con restauración operacional, E2E navegador/backend, disponibilidad 24/7, despliegue y conformidad legal.
 
 **Regla de calidad:** un requisito sólo cuenta como completado cuando exista código en `main`, test y evidencia verificable; las decisiones de negocio y normativas requieren aprobación explícita independiente. Este documento conserva el backlog propuesto para facilitar esa decisión.
+
+## Incidencias residenciales (iteración en PR #17)
+
+En desarrollo: alta de reportes por unidad/área común, categorías, prioridad, estados, comentarios y permisos por rol; 32 pruebas Node locales y prueba visual/API a través de puente; CI directo pendiente. **No** incluye fotografías, avisos externos, SLA, asignaciones ni mantenimiento preventivo. Estas extensiones se priorizarán después de la decisión de jurisdicción, privacidad y arquitectura de producción.

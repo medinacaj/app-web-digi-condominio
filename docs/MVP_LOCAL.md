@@ -104,3 +104,11 @@ El administrador puede **anular** una cuota o un pago erróneo aportando un moti
 ## Integridad y seguridad v0.4.1
 
 Cada operación de alta de unidades, cuotas, pagos, comunicados, proveedores, gastos, metadatos de documentos y reversos se ejecuta con su evento de auditoría en un **SAVEPOINT** SQLite: si el evento falla, se revierte también el cambio principal. Los puntos de guardado permiten que el importador CSV mantenga su transacción exterior y revierta todo un lote. Se reforzó `.gitignore` para excluir credenciales, archivos de configuración local, certificados y datos/respaldos. No sustituye un escaneo de secretos ni una política de gestión de datos; mantener prueba y revisión manual antes de usar datos reales. La batería automática contiene 29 pruebas.
+
+## Iteración v0.5.0 — Incidencias y pruebas de navegador
+
+Nuevo módulo de seguimiento de incidencias con comentarios, estados, roles y aislamiento entre comunidades; ver [INCIDENCIAS.md](INCIDENCIAS.md). La app web integra el módulo en navegación y panel general.
+
+Validación local: `npm run check` con 32 tests superados; `python3 tests/browser-e2e.py` con Playwright y puente Node para esquivar la política de navegador en este entorno, incluyendo login, reportes, cambios y anulación XSS. El workflow añade una prueba **directa** de navegador y servidor en GitHub Actions que debe verificarse tras el push.
+
+Es funcionalidad local; no hay adjuntos ni publicaciones externas. La configuración de variables se documenta en `.env.example` sin valores secretos.

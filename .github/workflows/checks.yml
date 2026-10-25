@@ -18,3 +18,26 @@ jobs:
           node-version: '22'
       - name: Comprobar sintaxis y pruebas
         run: npm run check
+
+  browser-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preparar Chromium para pruebas (datos sintéticos)
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Comprobar app web contra backend HTTP real
+        env:
+          DIGI_E2E_MODE: direct
+        run: python tests/browser-e2e.py

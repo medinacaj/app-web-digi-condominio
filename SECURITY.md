@@ -29,3 +29,7 @@ La administración anula registros financieros con motivo obligatorio y registro
 Se reforzó `.gitignore` para incluir `.env`, certificados, llaves, bases SQLite, journals, copias locales y directorios privados. **Ignorar archivos no evita comprometer un secreto ya rastreado**: además se debe evitar crearlos en el árbol de trabajo y revisar historial/configuración de acceso con permisos correspondientes.
 
 Las escrituras de unidades, cuotas, pagos, anulaciones, avisos, proveedores, gastos y documentos ahora usan `SAVEPOINT` para persistir o revertir **junto con su auditoría**. La importación CSV usa una transacción exterior y no pierde atomicidad. Se añadieron pruebas de fallo inducido y configuración, para un total local de **29 tests**. Estos controles son parciales y no autorizan uso productivo, procesar datos personales reales ni habilitar acceso remoto.
+
+## Incidencias v0.5.0, PR #17
+
+Los reportes se autorizan por comunidad y unidad **en servidor**, con contenido mostrado mediante escape HTML. Admin cambia estado con nota obligatoria; propietario no obtiene incidencias ajenas. El historial, comentario y auditoría se escriben atómicamente; se limitan las respuestas de listados a 100 elementos y 100 eventos por reporte. No se admiten archivos binarios ni fotografías. La retención, permisos legales y control de abuso requieren revisión antes de usar con datos reales.

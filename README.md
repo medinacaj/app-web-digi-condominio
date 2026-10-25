@@ -41,3 +41,9 @@ La aplicación requiere configurar las credenciales y la comunidad inicial desde
 ## Estado y límites
 
 La versión 0.4.0 se incorporó a `main` por PR [#10](https://github.com/medinacaj/app-web-digi-condominio/pull/10), después de #1 y #9. Los controles adicionales de la v0.4.1 se desarrollaron y comprobaron como mejora posterior. El conjunto local tiene **29 pruebas**, pero falta validar normativas, consentimiento, restauraciones operativas, seguridad independiente y arquitectura productiva. El repositorio sigue privado; ningún cambio de visibilidad o despliegue puede hacerse sin autorización.
+
+## Próxima versión — v0.5.0 en revisión (PR #17)
+
+El [PR #17](https://github.com/medinacaj/app-web-digi-condominio/pull/17) añade **Incidencias**, integrado en la app web y backend local: reportes, prioridad, comentarios, estados y permisos de comunidad. Pruebas Node en rama: **32/32**. La primera ejecución CI de navegador falló por incompatibilidad Playwright/Ubuntu 26.04; runner corregido a Ubuntu 24.04, en espera de nueva ejecución. No considerarlo integrado hasta fusionar y verificar CI.
+
+Manual: [docs/INCIDENCIAS.md](docs/INCIDENCIAS.md). No aporta fotos, notificaciones externas ni servicio de producción.
