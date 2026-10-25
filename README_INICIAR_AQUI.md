@@ -48,3 +48,7 @@ Tras PR #1 y #9, evaluar [PR #10](https://github.com/medinacaj/app-web-digi-cond
 ### Actualización v0.3.0
 
 En [PR #10](https://github.com/medinacaj/app-web-digi-condominio/pull/10) hay 23 pruebas, módulo local de proveedores/gastos, exportaciones CSV, respaldo/restore testado, importación de unidades y provisión de roles por CLI. Estos cambios no implican disponibilidad en `main` hasta fusionar. Usar `docs/MVP_LOCAL.md` para reproducir sin datos reales.
+
+### Verificación técnica de v0.4.0
+
+Pruebas locales **24/24**; la rama contiene backend local, UI conectada, importación CSV, reportes, backups y anulaciones. Consultar `docs/MVP_LOCAL.md`. Ninguna función bancaria, correo o procesamiento de documentos adjuntos está habilitada; no debe utilizarse con datos de residentes reales.
