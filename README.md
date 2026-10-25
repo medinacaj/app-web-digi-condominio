@@ -35,9 +35,9 @@ Repositorio privado. No se autoriza la redistribución del código, los diseños
 
 ## MVP local 0.3.0 · PR #10
 
-Se implementó autenticación, sesiones revocables, aislamiento por comunidad y roles; unidades, cuotas, pagos manuales, proveedores, gastos, comunicados, fichas documentales, importación CSV local, exportaciones protegidas y auditoría de altas. **No apto para datos reales ni producción**.
+Se implementó autenticación, sesiones revocables, aislamiento por comunidad y roles; unidades, cuotas, pagos manuales, proveedores, gastos, comunicados, fichas documentales, importación CSV local, exportaciones protegidas, auditoría de altas y anulaciones de movimientos con historial. **No apto para datos reales ni producción**.
 
-Instrucciones completas: [docs/MVP_LOCAL.md](docs/MVP_LOCAL.md). Requiere Node.js 22.16+ con `node:sqlite` experimental. Comprobación local: **23 pruebas superadas**; para producción siguen pendientes permisos definitivos, integraciones, revisiones legales y pruebas avanzadas.
+Instrucciones completas: [docs/MVP_LOCAL.md](docs/MVP_LOCAL.md). Requiere Node.js 22.16+ con `node:sqlite` experimental. Comprobación local: **24 pruebas superadas**; para producción siguen pendientes permisos definitivos, integraciones, revisiones legales y pruebas avanzadas.
 
 ```bash
 # Configurar DIGI_ADMIN_EMAIL, DIGI_ADMIN_PASSWORD y DIGI_COMMUNITY_NAME sin versionarlos.
