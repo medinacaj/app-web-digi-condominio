@@ -28,6 +28,7 @@ test('API HTTP: login, autorización, validación, assets y revocación',async t
   const communities=(await req('/api/communities','GET',null,login.token)).data.communities;
   assert.deepEqual(communities.map(x=>x.name),['Edificio A']);
   assert.equal((await req(`/api/communities/${b}/overview`,'GET',null,login.token)).status,404);
+  assert.equal((await req(`/api/communities/${a}/overview`,'POST',{},login.token)).status,405);
   assert.equal((await req(`/api/communities/${a}/units`,'POST',{code:'X-1',kind:'Casa'},login.token)).status,201);
   assert.equal((await req(`/api/communities/${a}/units`,'POST',{code:'X-1',kind:'Casa'},login.token)).status,409);
   const overview=(await req(`/api/communities/${a}/overview`,'GET',null,login.token)).data;

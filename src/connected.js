@@ -128,6 +128,7 @@ async function submitCreate(form){
   try{
     if(type==='charge'||type==='payment'||type==='expense'){data.amountMinor=amountMinor(data.amount);delete data.amount;}
     state.busy=true;state.error='';
+    const submit=form.querySelector('button[type=submit]');if(submit)submit.disabled=true;
     await request(`${base()}/${routes[type]}`,'POST',data);
     state.modal=null;state.query='';await refresh();
   }catch(e){state.error=e.message;render();}finally{state.busy=false;}

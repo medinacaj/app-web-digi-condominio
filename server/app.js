@@ -65,7 +65,7 @@ export function createApp(store){
         if(!match)throw new Problem(404,'Ruta no disponible');
         const [, communityId,resource]=match;
         if(req.method==='GET' && resource==='overview')return send(res,200,store.overview(user.id,communityId));
-        if(req.method!=='POST')throw new Problem(405,'Método no permitido');
+        if(req.method!=='POST' || resource==='overview')throw new Problem(405,'Método no permitido');
         const input=await body(req);
         const act={units:'addUnit',charges:'addCharge',payments:'addPayment',announcements:'addAnnouncement',documents:'addDocument',providers:'addProvider',expenses:'addExpense'}[resource];
         return send(res,201,store[act](user.id,communityId,input));
