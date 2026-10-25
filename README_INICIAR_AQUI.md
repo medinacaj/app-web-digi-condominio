@@ -1,0 +1,38 @@
+# Iniciar o reanudar Digi-Condominio
+
+**Fecha de inspección:** 2026-10-25. **Repositorio:** `medinacaj/app-web-digi-condominio`, privado. **Rama base:** `main`.
+
+## Fuente de verdad
+
+El código, los issues, las decisiones y el estado **integrados en `main`** constituyen el registro oficial. Una rama o PR describe trabajo propuesto hasta su integración. Las conversaciones y documentos externos son antecedentes, no sustituyen el estado verificado del repositorio.
+
+## Orden de lectura
+
+1. `README.md`
+2. `CONTEXTO_MAESTRO.md`
+3. `ESTADO_ACTUAL.md`
+4. `DECISIONES_Y_CAMBIOS.md`
+5. `docs/AUDITORIA_INICIAL.md` y `docs/BACKLOG_MVP.md`
+6. Issues abiertos, PRs pendientes, últimos commits y resultados reales de CI
+
+Leer también `INVENTARIO_ARCHIVOS.json`, `INFORME_TRANSFERENCIA.md` y `PROMPT_REANUDACION.md` en traspasos.
+
+## Lo verificado al inicio
+
+- `main` tenía únicamente un README de 25 bytes y un commit inicial (SHA `3dfb07c76fcdbf52c2c0938a238255f36174db4e`).
+- No había código, tests, workflows, issues ni PRs en la inspección inicial.
+- La rama `main` no tenía protección de rama. GitHub devolvió HTTP 403 para consulta de rulesets privados indicando que requiere GitHub Pro o repositorio público.
+- La privacidad es una restricción: **no hacer público el repositorio ni cambiar configuración que afecte despliegues sin autorización**.
+
+## Arranque mínimo
+
+1. Verificar el estado actual de GitHub y el alcance exacto del PR de documentación.
+2. Confirmar/validar jurisdicción inicial, usuarios objetivo y núcleo de negocio; no asumir que una referencia a «CondoTech Venezuela» define el lanzamiento.
+3. Cerrar el MVP propuesto con criterios de aceptación por flujo.
+4. Seleccionar arquitectura con decisión registrada; crear primer esqueleto mediante PR.
+5. Añadir pruebas, controles de seguridad, despliegue no público y documentación reproducible.
+6. Actualizar estado y decisiones tras cada tarea; conservar enlaces a PR, pruebas y releases.
+
+## Restricciones
+
+No incorporar datos reales de residentes, comprobantes o credenciales al repositorio. No inventar despliegues, integraciones ni pruebas. Mantener propietario y acceso exclusivo; revisar permisos de aplicaciones conectadas periódicamente.
