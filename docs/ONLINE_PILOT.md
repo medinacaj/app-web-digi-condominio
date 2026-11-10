@@ -83,3 +83,6 @@ Permanecen los hallazgos anteriores sobre historial de incidencias >100 eventos,
 
 ## Nueva decisión comercial
 El usuario solicita pagos reales. Su implementación requiere confirmar país de la entidad cobradora, moneda, precios y proveedor compatible. Los metadatos actuales no constituyen cobro real; no se activó una pasarela ni se inventaron importes.
+
+El titular confirmó entidad cobradora en **Chile** y precios en **USD**. Véase
+[PAGOS_REALES.md](PAGOS_REALES.md) para el alcance y los requisitos de la integración.
