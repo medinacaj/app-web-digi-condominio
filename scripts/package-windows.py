@@ -32,7 +32,7 @@ def build(runtime_zip, checksums, output):
         'INFORME_TRANSFERENCIA.md',
         'server/start.js', 'server/local-launcher.js', 'server/account-migration.js',
         'server/migrate-accounts.js', 'server/provision-account.js', 'server/identity.js', 'server/web-security.js',
-        'server/subscriptions.js', 'server/set-subscription.js', 'server/mailer.js',
+        'server/pricing.js', 'server/subscriptions.js', 'server/set-subscription.js', 'server/mailer.js',
         'server/hosted-config.js', 'server/hosted-start.js', 'server/hosted-launch.js', 'server/store.js', 'server/app.js',
         'server/report.js', 'server/bootstrap.js', 'server/backup.js', 'server/add-user.js',
         'server/import-csv.js', 'server/secure-backup.js', 'server/secure-backup-cli.js',

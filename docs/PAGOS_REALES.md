@@ -6,8 +6,11 @@
 - Moneda del precio de la suscripción: dólares estadounidenses (USD).
 - Se requieren pagos reales; la configuración asistida de suscripción no los sustituye.
 
+## Tarifa base aprobada
+US$0,75 por unidad al mes, con mínimo de US$25 por condominio. Para administradoras se suman los importes de cada condominio; no se aplican descuentos sin una definición adicional. El servidor calcula en centavos enteros y ofrece una cotización privada al administrador de cuenta. Impuestos y comisiones están pendientes; no se ha decidido cómo se incorporan al precio final. Esta cotización no ejecuta cargos.
+
 ## Pendientes comerciales necesarios
-Precios de los planes, periodicidad, criterio de cobro para condominios independientes y administradoras, impuestos, prueba gratuita, cancelaciones y reembolsos. No se inventaron importes ni se habilitaron cargos.
+Descuentos por volumen, impuestos, comisiones, prueba gratuita, cancelaciones y reembolsos. No se habilitaron cargos.
 
 ## Selección e integración
 Evaluar una pasarela que permita a la entidad comercial chilena habilitar suscripciones recurrentes denominadas en USD. PayPal es una candidata por verificar con la cuenta comercial concreta. No se presume elegibilidad del comerciante, del producto de suscripciones o del retiro de fondos por aceptar el país y moneda en una API. Denominar el precio en USD tampoco garantiza liquidación bancaria en USD: confirmar conversión, comisiones, disponibilidad y obligaciones tributarias con el proveedor y asesor correspondiente.

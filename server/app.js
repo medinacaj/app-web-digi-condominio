@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Problem } from './store.js';
 import { report } from './report.js';
+import { quoteAccount } from './pricing.js';
 import { webSecurity } from './web-security.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -84,6 +85,8 @@ export function createApp(store,options={}){
           if(!identity)throw new Problem(503,'El servicio de correo e identidad no está configurado');
           return send(res,201,await identity.createInvitation(user.id,invitationMatch[1],await body(req)));
         }
+        const quoteMatch=/^\/api\/accounts\/([a-zA-Z0-9-]{36})\/quote$/.exec(pathname);
+        if(quoteMatch){if(req.method!=='GET')throw new Problem(405,'Método no permitido');return send(res,200,{quote:quoteAccount(store,user.id,quoteMatch[1])});}
         const subscriptionMatch=/^\/api\/accounts\/([a-zA-Z0-9-]{36})\/subscription$/.exec(pathname);
         if(subscriptionMatch){
           if(req.method!=='GET')throw new Problem(405,'Método no permitido');
