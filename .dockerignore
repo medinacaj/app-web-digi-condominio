@@ -1,0 +1,9 @@
+**
+!Dockerfile
+!package.json
+!index.html
+!server/
+!server/*.js
+!src/
+!src/*.js
+!src/*.css

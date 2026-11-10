@@ -11,7 +11,7 @@ function fixture(t){
   const ownerA=s.createUser('ownera@incidencias.test','Secret0MuyLargo!2026');
   const ownerB=s.createUser('ownerb@incidencias.test','Secret0MuyLargo!2026');
   const outsider=s.createUser('outsider@incidencias.test','Secret0MuyLargo!2026');
-  const community=s.createCommunity('Edificio Alameda');const another=s.createCommunity('Edificio Arauco');
+  const community=s.createCommunity('Edificio Alameda','',s.createAccount(admin,{name:'Edificio Alameda',kind:'independent'}).id);const another=s.createCommunity('Edificio Arauco','',s.createAccount(admin,{name:'Edificio Arauco',kind:'independent'}).id);
   s.setMembership(admin,community,'admin');s.setMembership(committee,community,'committee');
   s.setMembership(ownerA,community,'owner');s.setMembership(ownerB,community,'owner');s.setMembership(outsider,another,'admin');
   const ua=s.addUnit(admin,community,{code:'101',kind:'Departamento',ownerUserId:ownerA}).id;

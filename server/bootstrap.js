@@ -11,7 +11,8 @@ try{
   store.db.exec('BEGIN IMMEDIATE');
   try {
     const userId=store.createUser(email,password,'Administración inicial');
-    const communityId=store.createCommunity(community);
+    const account=store.createAccount(userId,{name:process.env.DIGI_ACCOUNT_NAME?.trim()||community,kind:process.env.DIGI_ACCOUNT_KIND??'independent'});
+    const communityId=store.createCommunity(community,'',account.id);
     store.setMembership(userId,communityId,'admin');
     store.db.exec('COMMIT');
   } catch(error) { store.db.exec('ROLLBACK'); throw error; }

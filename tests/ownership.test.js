@@ -11,7 +11,7 @@ function setup(t){
   const owner2=s.createUser('owner2@owners.test','VeryStrongPassword#2026','Dos');
   const outsider=s.createUser('outside@owners.test','VeryStrongPassword#2026');
   const committee=s.createUser('committee@owners.test','VeryStrongPassword#2026');
-  const a=s.createCommunity('Residencial A'),b=s.createCommunity('Residencial B');
+  const a=s.createCommunity('Residencial A','',s.createAccount(admin,{name:'Residencial A',kind:'independent'}).id),b=s.createCommunity('Residencial B','',s.createAccount(admin,{name:'Residencial B',kind:'independent'}).id);
   for(const [user,community,role] of [[admin,a,'admin'],[owner1,a,'owner'],[owner2,a,'owner'],[outsider,b,'owner'],[committee,a,'committee']])s.setMembership(user,community,role);
   const unit=s.addUnit(admin,a,{code:'A101',kind:'Departamento'}).id;
   return {s,admin,owner1,owner2,outsider,committee,a,b,unit};

@@ -7,7 +7,7 @@ function fixture(){
   const other=s.createUser('other@example.test','VeryStrongPassword#2026','Otro admin');
   const owner=s.createUser('owner@example.test','VeryStrongPassword#2026','Propietaria');
   const committee=s.createUser('committee@example.test','VeryStrongPassword#2026','Comité');
-  const a=s.createCommunity('Comunidad A'),b=s.createCommunity('Comunidad B');
+  const a=s.createCommunity('Comunidad A','',s.createAccount(admin,{name:'Comunidad A',kind:'independent'}).id),b=s.createCommunity('Comunidad B','',s.createAccount(admin,{name:'Comunidad B',kind:'independent'}).id);
   s.setMembership(admin,a,'admin');s.setMembership(other,b,'admin');s.setMembership(owner,a,'owner');s.setMembership(committee,a,'committee');
   const unitA=s.addUnit(admin,a,{code:'A-01',kind:'Departamento',resident:'Residente demo',ownerUserId:owner}).id;
   const unitB=s.addUnit(other,b,{code:'B-01',kind:'Casa',resident:'Residente demo'}).id;
@@ -90,7 +90,7 @@ test('los registros sobreviven al cierre y reapertura de SQLite',async t=>{
   const file=join(path,'condominio.sqlite');
   let s=new Store(file);
   const admin=s.createUser('persist@example.test','VeryStrongPassword#2026');
-  const community=s.createCommunity('Prueba de persistencia');
+  const community=s.createCommunity('Prueba de persistencia','',s.createAccount(admin,{name:'Prueba de persistencia',kind:'independent'}).id);
   s.setMembership(admin,community,'admin');
   const unit=s.addUnit(admin,community,{code:'T-101',kind:'Casa'}).id;
   s.addCharge(admin,community,{unitId:unit,period:'2026-10',concept:'Común',amountMinor:12300});

@@ -1,12 +1,12 @@
 {
   "name": "digi-condominio-web",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
-  "description": "Interfaz web y backend local con SQLite, autenticación y aislamiento de comunidades",
+  "description": "Base SaaS multi-cliente para piloto privado, con modo local y despliegue HTTPS preparado",
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/entry.js && node --check src/connected.js && node --check server/store.js && node --check server/app.js && node --check server/report.js && node --check server/bootstrap.js && node --check server/backup.js && node --check server/add-user.js && node --check server/import-csv.js && node --check server/secure-backup.js && node --check server/secure-backup-cli.js && node --check server/restore-backup-cli.js && node --check server/start.js && node --check src/main.js && node --check src/domain.js && node --check src/demo-data.js && node --check src/ui.js && npm test",
+    "check": "node --check src/entry.js && node --check src/connected.js && node --check server/store.js && node --check server/app.js && node --check server/report.js && node --check server/bootstrap.js && node --check server/backup.js && node --check server/add-user.js && node --check server/import-csv.js && node --check server/secure-backup.js && node --check server/secure-backup-cli.js && node --check server/restore-backup-cli.js && node --check server/start.js && node --check src/main.js && node --check src/domain.js && node --check src/demo-data.js && node --check src/ui.js && node --check server/local-launcher.js && node --check server/provision-account.js && node --check server/account-migration.js && node --check server/migrate-accounts.js && node --check server/web-security.js && node --check server/identity.js && node --check server/subscriptions.js && node --check server/hosted-config.js && node --check server/mailer.js && node --check server/hosted-start.js && node --check server/hosted-launch.js && node --check server/set-subscription.js && npm test",
     "serve": "python3 -m http.server 4173",
     "start": "node server/start.js",
     "bootstrap": "node server/bootstrap.js",
@@ -15,7 +15,11 @@
     "import-units": "node server/import-csv.js",
     "test:browser": "python3 tests/browser-e2e.py",
     "backup:secure": "node server/secure-backup-cli.js",
-    "restore:secure": "node server/restore-backup-cli.js"
+    "restore:secure": "node server/restore-backup-cli.js",
+    "provision:account": "node server/provision-account.js",
+    "migrate:accounts": "node server/migrate-accounts.js",
+    "start:hosted": "node server/hosted-launch.js",
+    "subscription:set": "node server/set-subscription.js"
   },
   "engines": {
     "node": ">=22.16.0"

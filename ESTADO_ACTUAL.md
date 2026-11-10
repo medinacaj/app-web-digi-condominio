@@ -1,3 +1,23 @@
+# Actualización local — base SaaS (9 de noviembre de 2026)
+
+El usuario aprobó atender condominios independientes y empresas administradoras en una sola aplicación.
+La implementación local añade cuentas de cliente, pertenencia obligatoria de condominios,
+roles de cuenta y asignaciones operacionales explícitas, auditoría y migración controlada v3→v4.
+La interfaz incorpora selector de cuenta y Gestión de cuenta.
+Ver [docs/SAAS_BASE.md](docs/SAAS_BASE.md).
+
+Estado: base SaaS implementada y validada localmente, sin commit/push ni ejecución remota de CI atribuida.
+Pruebas Node: 62 aprobadas, 0 fallidas y 1 exclusiva de Windows omitida en Linux.
+Recorridos de navegador existentes, asistente local y cuentas SaaS aprobados.
+El servidor sigue limitado a loopback. Hosting, HTTPS, recuperación/invitaciones, planes,
+archivos privados y operación productiva siguen pendientes. El paquete Windows es opcional
+para pruebas y no es la modalidad principal acordada del producto.
+
+La siguiente sección conserva el corte histórico publicado del repositorio; sus SHAs,
+versiones y resultados no deben interpretarse como validación del trabajo local actual.
+
+---
+
 # Estado actual — Digi-Condominio v0.7.0
 
 **Corte verificado:** 25-10-2026 · [Repositorio privado](https://github.com/medinacaj/app-web-digi-condominio)

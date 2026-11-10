@@ -13,7 +13,7 @@ test('proveedores y gastos son privados por comunidad y se exportan sin ejecutar
   const admin=s.createUser('admin@example.test','VeryStrongPassword#2026');
   const outsider=s.createUser('outside@example.test','VeryStrongPassword#2026');
   const committee=s.createUser('committee@example.test','VeryStrongPassword#2026');
-  const a=s.createCommunity('Edificio A'),b=s.createCommunity('Edificio B');
+  const a=s.createCommunity('Edificio A','',s.createAccount(admin,{name:'Edificio A',kind:'independent'}).id),b=s.createCommunity('Edificio B','',s.createAccount(admin,{name:'Edificio B',kind:'independent'}).id);
   s.setMembership(admin,a,'admin');s.setMembership(outsider,b,'admin');s.setMembership(committee,a,'committee');
   const provider=s.addProvider(admin,a,{name:'=IMPORTXML("mal")',category:'Electricidad'}).id;
   const providerB=s.addProvider(outsider,b,{name:'Seguridad B',category:'Seguridad'}).id;

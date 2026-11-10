@@ -4,6 +4,23 @@
 
 **IMPORTANTE:** MVP experimental local, **NO** publicado en Internet ni apto todavía para datos reales de residentes. La conformidad legal, arquitectura productiva y mercado inicial siguen pendientes.
 
+## Piloto HTTPS preparado — trabajo v0.8.0
+
+Se añadieron sesiones seguras para modo alojado, invitaciones, recuperación de cuentas,
+metadatos de suscripción y preparación Docker/Caddy/Render. La configuración y los
+requisitos externos están en [docs/ONLINE_PILOT.md](docs/ONLINE_PILOT.md).
+No hay todavía un despliegue público, correo real verificado ni cobros implementados.
+El modo local sigue disponible; el servidor alojado se inicia con `npm run start:hosted`.
+
+## Base SaaS en desarrollo local
+
+Se incorporó en el trabajo local la estructura **cuenta de cliente → condominios → unidades**,
+con cuentas independientes y empresas administradoras, permisos por cuenta y condominio,
+gestión de cuenta desde la web y migración explícita de esquema 3 a 4 con respaldo.
+Consulta [docs/SAAS_BASE.md](docs/SAAS_BASE.md) para alta asistida, permisos y migración.
+Esta entrega aún no está fusionada ni publicada en GitHub y no constituye un SaaS alojado.
+Las funciones históricas de `main` se describen a continuación.
+
 ## Funcionalidades implementadas en `main`
 
 - App web adaptable con panel administrativo, búsqueda, módulos por rol y sesiones autenticadas.
@@ -13,6 +30,20 @@
 - Importación de unidades desde CSV mediante CLI, exportación administrativa CSV protegida contra fórmulas.
 - Copias locales SQLite cifradas con AES-256-GCM, restauración autenticada y control `user_version=3` del esquema conocido.
 - Tests Node y navegador Playwright contra backend HTTP real en GitHub Actions.
+
+## Windows: iniciar con doble clic
+
+El paquete portátil Windows x64 incluye Node y no requiere instalar Git ni ejecutar
+comandos. Extrae todo el ZIP y abre **Iniciar Digi-Condominio.cmd**. El navegador
+presenta la configuración de tu comunidad y cuenta la primera vez; después abre
+el login existente. Los datos permanecen en `.data/` y no se sincronizan con GitHub.
+Consulta [LEEME-WINDOWS.txt](LEEME-WINDOWS.txt) para uso y respaldo.
+
+Si descargas solo el código del repositorio, instala Node.js 24 LTS una vez y usa
+el mismo iniciador. El paquete portátil se genera con `scripts/package-windows.py`
+a partir del ZIP oficial de Node y sus checksums; no se versionan binarios ni datos.
+Las pruebas de Windows se configuran en CI; no equivalen a una ejecución remota
+verificada ni a publicación del paquete.
 
 ## Iniciar la aplicación local
 

@@ -8,7 +8,7 @@ test('API HTTP: login, autorización, validación, assets y revocación',async t
   const store=new Store();
   const admin=store.createUser('admin@example.test','VeryStrongPassword#2026');
   const outsider=store.createUser('outside@example.test','VeryStrongPassword#2026');
-  const a=store.createCommunity('Edificio A'),b=store.createCommunity('Edificio B');
+  const a=store.createCommunity('Edificio A','',store.createAccount(admin,{name:'Edificio A',kind:'independent'}).id),b=store.createCommunity('Edificio B','',store.createAccount(admin,{name:'Edificio B',kind:'independent'}).id);
   store.setMembership(admin,a,'admin');store.setMembership(outsider,b,'admin');
   const server=createApp(store);
   server.listen(0,'127.0.0.1');await once(server,'listening');

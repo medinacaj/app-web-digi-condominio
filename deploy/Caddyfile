@@ -1,0 +1,7 @@
+{
+    email {$DIGI_TLS_EMAIL}
+}
+{$DIGI_DOMAIN} {
+    encode zstd gzip
+    reverse_proxy app:3000
+}

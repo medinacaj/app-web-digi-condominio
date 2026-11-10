@@ -12,7 +12,7 @@ test('respaldo cifrado restaura unidades, pagos, membresías e incidencias',asyn
   const passphrase='Passphrase muy larga de respaldo solo de QA 2026';
   const s=new Store(dbPath);
   const admin=s.createUser('admin@encrypted.test','VeryStrongPassword#2026');
-  const community=s.createCommunity('Torre prueba');s.setMembership(admin,community,'admin');
+  const community=s.createCommunity('Torre prueba','',s.createAccount(admin,{name:'Torre prueba',kind:'independent'}).id);s.setMembership(admin,community,'admin');
   const unit=s.addUnit(admin,community,{code:'T1',kind:'Casa'}).id;
   s.addCharge(admin,community,{unitId:unit,period:'2026-10',concept:'Común',amountMinor:3000});
   s.addPayment(admin,community,{unitId:unit,reference:'QA-1',concept:'Abono',amountMinor:500});

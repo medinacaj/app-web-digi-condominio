@@ -5,7 +5,7 @@ import { Store } from '../server/store.js';
 test('si falla la auditoría, cargo y pago se revierten automáticamente', t => {
   const store = new Store(); t.after(() => store.close());
   const admin = store.createUser('admin@atomic.test','Segura-Longitud-2026-Excelente');
-  const community = store.createCommunity('Comunidad prueba');
+  const community = store.createCommunity('Comunidad prueba','',store.createAccount(admin,{name:'Comunidad prueba',kind:'independent'}).id);
   store.setMembership(admin, community, 'admin');
   const unit = store.addUnit(admin, community, {code:'A1',kind:'Departamento'}).id;
   const realAudit=store.audit;
@@ -24,7 +24,7 @@ test('si falla la auditoría, cargo y pago se revierten automáticamente', t => 
 test('si falla la auditoría de anulación, el movimiento permanece activo', t => {
   const store=new Store();t.after(()=>store.close());
   const admin=store.createUser('admin2@atomic.test','Segura-Longitud-2026-Excelente');
-  const community=store.createCommunity('Comunidad B');store.setMembership(admin,community,'admin');
+  const community=store.createCommunity('Comunidad B','',store.createAccount(admin,{name:'Comunidad B',kind:'independent'}).id);store.setMembership(admin,community,'admin');
   const unit=store.addUnit(admin,community,{code:'B1',kind:'Casa'}).id;
   const charge=store.addCharge(admin,community,{unitId:unit,period:'2026-10',concept:'Cuota',amountMinor:3000}).id;
   const old=store.audit;store.audit=()=>{throw new Error('Error de auditoría simulado');};
@@ -39,7 +39,7 @@ test('si falla la auditoría de anulación, el movimiento permanece activo', t =
 test('importación por lotes puede revertir escrituras y auditorías juntas', t => {
   const s = new Store(); t.after(()=>s.close());
   const admin=s.createUser('admin3@atomic.test','Segura-Longitud-2026-Excelente');
-  const community=s.createCommunity('Comunidad C');s.setMembership(admin,community,'admin');
+  const community=s.createCommunity('Comunidad C','',s.createAccount(admin,{name:'Comunidad C',kind:'independent'}).id);s.setMembership(admin,community,'admin');
   s.db.exec('BEGIN IMMEDIATE');
   try {
     s.addUnit(admin,community,{code:'C-101',kind:'Casa'});

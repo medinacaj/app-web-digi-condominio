@@ -40,4 +40,32 @@ jobs:
       - name: Comprobar app web contra backend HTTP real
         env:
           DIGI_E2E_MODE: direct
-        run: python tests/browser-e2e.py
+        run: |
+          python tests/browser-e2e.py
+          python tests/local-launcher-browser.py
+          python tests/accounts-browser.py
+          python tests/online-browser.py
+
+  windows-local:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verificar aplicación e iniciador Windows real
+        run: npm run check
+
+  container-pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Construir contenedor de piloto
+        run: docker build -t digi-condominio:pilot-test .
+      - name: Verificar TLS y persistencia con datos sintéticos
+        run: python3 scripts/testing/container-smoke.py

@@ -11,7 +11,7 @@ test('respaldo y restauración recuperan saldos y membresías',async t=>{
  const original=join(root,'origen.sqlite'),copy=join(root,'respaldo.sqlite');
  const db=new Store(original);
  const user=db.createUser('qa@example.test','VeryStrongPassword#2026');
- const community=db.createCommunity('QA');db.setMembership(user,community,'admin');
+ const community=db.createCommunity('QA','',db.createAccount(user,{name:'QA',kind:'independent'}).id);db.setMembership(user,community,'admin');
  const unit=db.addUnit(user,community,{code:'12',kind:'Departamento'}).id;
  db.addCharge(user,community,{unitId:unit,period:'2026-10',concept:'Cuota',amountMinor:5000});
  await backup(db.db,copy);db.close();

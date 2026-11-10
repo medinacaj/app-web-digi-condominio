@@ -1,0 +1,52 @@
+DIGI-CONDOMINIO EN TU PC - PRUEBAS LOCALES
+
+1. Haz clic derecho en el ZIP y elige "Extraer todo".
+   Guarda la carpeta en Documentos. No ejecutes el programa dentro del ZIP.
+2. Abre la carpeta extraida y haz doble clic en "Iniciar Digi-Condominio.cmd".
+3. El navegador se abre solo. La primera vez, escribe el nombre de una comunidad
+   ficticia, tu correo y una contrasena de 12 a 128 caracteres. No se envia correo.
+4. Inicia sesion con esos datos y empieza a probar Unidades, Cuotas, Pagos,
+   Incidencias, Comunicados, Documentos (solo fichas, sin adjuntos) y Gastos.
+   Empieza creando una unidad para poder registrar sus cuotas y pagos.
+
+No necesitas instalar Node.js, Git, Python ni GitHub Desktop si usas el paquete
+portatil completo para Windows x64 (Intel/AMD, Windows 10/11 de 64 bits).
+No incluye un instalador de Windows ni crea un servicio automatico.
+Si solo descargaste el codigo desde GitHub, instala Node.js 24 LTS una vez.
+
+DURANTE EL USO
+- Manten abierta la ventana de Digi-Condominio.
+- Si no se abre el navegador, escribe http://127.0.0.1:4173 en tu navegador.
+- Para terminar, cierra esa ventana o pulsa Ctrl+C (confirma si Windows lo pide).
+- La proxima vez solo haz doble clic en el mismo archivo. Tu cuenta y datos siguen.
+- Recargar la pagina requiere iniciar sesion nuevamente: es el comportamiento actual.
+- Guarda tu contrasena. Esta version no tiene recuperacion automatica.
+- Para probar otro rol, la creacion de usuarios sigue siendo una herramienta
+  administrativa por CLI; no hay invitaciones ni registro publico en esta version.
+
+TUS DATOS Y COPIA DE SEGURIDAD
+- La base esta en .data/condominio.sqlite, dentro de la carpeta de la aplicacion.
+- No borres la carpeta ni reemplaces tus datos al descargar otra version.
+- Para una copia local sencilla, DETEN primero la aplicacion y copia TODA la carpeta
+  a un lugar privado. Esa copia contiene datos y NO esta cifrada.
+- Para actualizar con ayuda tecnica, conserva siempre .data. No mezcles la base con
+  otra version sin respaldo. El programa no sobrescribe cuentas al iniciar.
+- GitHub es opcional y solo guarda el codigo. Nunca subas .data ni contrasenas.
+
+SI APARECE UN ERROR
+- "Puerto ocupado": no abras dos veces. Usa la ventana que ya esta abierta.
+  Si otra aplicacion ocupa el puerto, pide ayuda; el programa no la cerrara.
+- "Falta el motor": vuelve a extraer TODO el paquete; verifica que exista
+  runtime/node.exe. No muevas el iniciador fuera de la carpeta.
+- "No se pudo guardar": usa una carpeta en Documentos con permiso de escritura,
+  no Archivos de programa, una unidad de solo lectura ni una carpeta compartida.
+- Si Windows bloquea el archivo, no desactives el antivirus. Verifica la procedencia
+  del paquete y consulta antes de permitir su ejecucion.
+
+ALCANCE
+Solo para pruebas con datos ficticios. Sigue siendo un MVP experimental, con los
+pendientes de seguridad e implementacion descritos en README.md y SECURITY.md.
+No publica tu PC en Internet y no permite entrar desde otros equipos.
+No es una aplicacion certificada para datos reales ni contabilidad regulada.
+El flujo web se verifica en Linux; la ejecucion nativa de Windows debe comprobarse
+con el job Windows de CI o en un PC. No se ha certificado este paquete en tu PC.
