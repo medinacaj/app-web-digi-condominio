@@ -4,7 +4,7 @@ const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,m
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
 const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
 const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null};
 function takeIdentityFragment(){
   const fragment=new URLSearchParams(location.hash.slice(1));
   for(const type of ['reset','invite'])if(fragment.has(type)){
@@ -17,7 +17,7 @@ takeIdentityFragment();
 let generation=0;
 class ContextChanged extends Error {}
 const isAccountAdmin=()=>state.accounts.find(a=>a.id===state.accountId)?.role==='account_admin';
-function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;}
+function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;}
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
   const token=state.token,revision=generation;
@@ -113,6 +113,7 @@ function renderAccount(){
   const memberOptions=d.members.map(m=>`<option value="${h(m.id)}">${h(m.displayName)} (${h(m.email)})</option>`).join('');
   const communityOptions=d.communities.map(c=>`<option value="${h(c.id)}">${h(c.name)}</option>`).join('');
   return `<div class="live-card account-card"><h2>${h(d.account.name)}</h2><p>${d.account.kind==='management_company'?'Empresa administradora':'Condominio independiente'} · ${d.communities.length} condominios</p><p>Administrar la cuenta no da acceso automático a las operaciones de cada condominio. Asigna esos permisos de forma explícita.</p>
+  <h3>Tarifa mensual</h3>${state.quote?`<p><strong>US$ ${(state.quote.amountMinor/100).toFixed(2)} al mes</strong> por ${state.quote.communities.length} condominios.</p><p>US$0,75 por unidad, mínimo US$25 por condominio. Impuestos y comisiones por confirmar. Esta cotización no realiza cargos.</p>`:''}
   <h3>Suscripción</h3><p>${state.subscription?.status==='unconfigured'?'Suscripción sin configurar.':`${h(state.subscription?.plan??'')} · ${h(state.subscription?.status??'unconfigured')}`}</p><p>La configuración asistida de planes no realiza cobros ni confirma pagos.</p>
   <h3>Invitar a una persona</h3><form id="account-invite-form" class="account-form"><label>Correo de la persona invitada<input name="email" type="email" required maxlength="254"></label><label>Rol de la invitación<select name="role"><option value="member">Miembro</option><option value="account_admin">Administrador de cuenta</option></select></label><label>Condominio de la invitación<select name="communityId"><option value="">Sin asignación operacional</option>${communityOptions}</select></label><label>Permiso inicial en el condominio<select name="communityRole"><option value="owner">Propietario</option><option value="committee">Comité</option><option value="admin">Administrador</option></select></label><button class="primary-button" ${state.busy?'disabled':''}>Enviar invitación</button></form><p>El correo debe estar configurado para entregar el enlace. No se muestra ni se copia el enlace en esta página.</p>
   <h3>Crear condominio</h3><form id="account-community-form" class="account-form"><label>Nombre del nuevo condominio<input name="name" required maxlength="130"></label><label>Dirección (opcional)<input name="address" maxlength="200"></label><button class="primary-button" ${state.busy?'disabled':''}>Crear condominio</button></form>
@@ -168,7 +169,7 @@ async function refresh(){
     const cs=await request(`/api/accounts/${accountId}/communities`);
     state.communities=cs.communities;
     state.selected=cs.communities.some(c=>c.id===communityId)?communityId:cs.communities[0]?.id??null;
-    if(isAccountAdmin()){state.accountData=await request(`/api/accounts/${accountId}`);state.subscription=(await request(`/api/accounts/${accountId}/subscription`)).subscription;}
+    if(isAccountAdmin()){state.accountData=await request(`/api/accounts/${accountId}`);state.subscription=(await request(`/api/accounts/${accountId}/subscription`)).subscription;state.quote=(await request(`/api/accounts/${accountId}/quote`)).quote;}
     if(state.selected){
       const d=await request(`/api/communities/${state.selected}/overview`);
       const members=d.role==='admin'?(await request(`/api/communities/${state.selected}/members`)).members:[];
