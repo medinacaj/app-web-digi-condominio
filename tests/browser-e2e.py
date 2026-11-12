@@ -230,7 +230,7 @@ s.setMembership(id,community,'owner');s.close();'''
             # libro solo después de una decisión explícita.
             page.get_by_role('button',name='Salir de la sesión').click()
             page.get_by_label('Correo electrónico').fill('admin@example.test')
-            page.get_by_label('Contraseña').fill('AdminStrongPassword#2026')
+            page.get_by_label('Contraseña').fill(PASSWORD)
             page.get_by_role('button',name='Ingresar al espacio privado').click()
             page.get_by_role('heading',name='Resumen').wait_for(timeout=9000)
             page.get_by_role('button',name='Pagos informados').click()
