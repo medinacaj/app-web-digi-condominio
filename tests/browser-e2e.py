@@ -99,6 +99,16 @@ s.setMembership(id,community,'owner');s.close();'''
             page.get_by_label('Nombre completo').fill('Arrendataria actualizada')
             page.get_by_role('button',name='Guardar').click()
             page.get_by_text('Arrendataria actualizada').wait_for(timeout=9000)
+            # Capturas solo de datos ficticios; nunca incluir registros personales reales.
+            output=os.getenv('DIGI_E2E_SCREENSHOT_DIR')
+            if output:
+                Path(output).mkdir(parents=True,exist_ok=True)
+                page.set_viewport_size({'width':1440,'height':900})
+                page.screenshot(path=str(Path(output)/'digi-directorio-desktop.png'),full_page=True)
+                page.set_viewport_size({'width':390,'height':844})
+                page.screenshot(path=str(Path(output)/'digi-directorio-mobile.png'),full_page=True)
+                page.set_viewport_size({'width':1440,'height':900})
+
             page.get_by_role('button',name='Dar de baja').click()
             page.get_by_role('button',name='Guardar').click()
             page.get_by_text('Inactivo',exact=True).wait_for(timeout=9000)
