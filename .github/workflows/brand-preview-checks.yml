@@ -1,0 +1,35 @@
+name: Residential brand preview checks
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "assets/brand/**"
+      - "index.html"
+      - "tests/brand-preview*"
+      - ".github/workflows/brand-preview-checks.yml"
+  push:
+    branches:
+      - feat/brand-refresh-demo-20261112
+permissions:
+  contents: read
+jobs:
+  brand-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Contratos de marca y seguridad
+        run: node --check src/ui.js && node --check src/main.js && node --test tests/brand-preview.test.mjs
+      - name: Capturas Chromium de la demo sin despliegue
+        run: bash tests/brand-preview-smoke.sh
+      - name: Guardar capturas del nuevo diseño
+        uses: actions/upload-artifact@v4
+        with:
+          name: digicondominio-brand-preview
+          path: artifacts/digicondominio-*.png
+          if-no-files-found: error
+          retention-days: 7
