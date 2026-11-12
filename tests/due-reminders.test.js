@@ -13,13 +13,14 @@ function setup(t){
  const owner=s.createUser('reminder-owner@example.test',password,'Propietario DEMO');
  const outsider=s.createUser('reminder-other@example.test',password,'Otro operador DEMO');
  const committee=s.createUser('reminder-committee@example.test',password,'Comité DEMO');
- const a=s.createCommunity('A','',s.createAccount(admin,{name:'Cuenta A',kind:'independent'}).id);
+ const accountA=s.createAccount(admin,{name:'Cuenta A',kind:'independent'}).id;
+ const a=s.createCommunity('A','',accountA);
  const b=s.createCommunity('B','',s.createAccount(outsider,{name:'Cuenta B',kind:'independent'}).id);
  for(const [user,community,role] of [[admin,a,'admin'],[owner,a,'owner'],[committee,a,'committee'],[outsider,b,'admin']])s.setMembership(user,community,role);
  const unit=s.addUnit(admin,a,{code:'T-B-504',kind:'Departamento',ownerUserId:owner}).id;
  const noOwner=s.addUnit(admin,a,{code:'T-B-505',kind:'Departamento'}).id;
  const foreign=s.addUnit(outsider,b,{code:'T-B-504',kind:'Departamento'}).id;
- return {s,admin,owner,outsider,committee,a,b,unit,noOwner,foreign};
+ return {s,admin,owner,outsider,committee,accountA,a,b,unit,noOwner,foreign};
 }
 function charge(x,unitId=x.unit,dueOn='2026-11-15',rest={}){
  return x.s.addCharge(x.admin,x.a,{unitId,...quoted,dueOn,...rest});
@@ -97,7 +98,7 @@ test('cambio de propietario o membresía revocada evita destinatarios inactivos'
  assert.equal(x.s.previewDueReminders(x.admin,x.a,'2026-11-12').pending,0);
  x.s.assignUnitOwner(x.admin,x.a,x.unit,x.owner);
  assert.equal(x.s.previewDueReminders(x.admin,x.a,'2026-11-12').pending,1);
- x.s.changeCommunityMember(x.admin,x.a,x.owner,null);
+ x.s.changeCommunityMember(x.admin,x.accountA,x.a,x.owner,null);
  assert.equal(x.s.previewDueReminders(x.admin,x.a,'2026-11-12').pending,0);
 });
 
