@@ -119,6 +119,21 @@ export function createApp(store,options={}){
           return send(res,200,store.changeCommunityMember(user.id,communityMember[1],communityMember[2],communityMember[3],data.role));
         }
         if(pathname==='/api/communities' && req.method==='GET')return send(res,200,{communities:store.communitiesFor(user.id)});
+        const unitNoticeMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/units\/([a-zA-Z0-9-]{36})\/messages$/.exec(pathname);
+        if(unitNoticeMatch){
+          if(req.method!=='POST')throw new Problem(405,'Método no permitido');
+          return send(res,201,store.sendUnitMessage(user.id,unitNoticeMatch[1],unitNoticeMatch[2],await body(req)));
+        }
+        const readNoticeMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/notifications\/([a-zA-Z0-9-]{36})\/read$/.exec(pathname);
+        if(readNoticeMatch){
+          if(req.method!=='PATCH')throw new Problem(405,'Método no permitido');
+          return send(res,200,store.readUnitNotification(user.id,readNoticeMatch[1],readNoticeMatch[2]));
+        }
+        const inboxMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/notifications$/.exec(pathname);
+        if(inboxMatch){
+          if(req.method!=='GET')throw new Problem(405,'Método no permitido');
+          return send(res,200,{notifications:store.notificationsFor(user.id,inboxMatch[1])});
+        }
         const ownerMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/units\/([a-zA-Z0-9-]{36})\/owner$/.exec(pathname);
         if(ownerMatch){
           if(req.method!=='PATCH')throw new Problem(405,'Método no permitido');

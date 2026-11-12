@@ -2,8 +2,8 @@ import { escapeHtml as h } from './domain.js';
 const app=document.getElementById('app');
 const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
-const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
-const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
+const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',notifications:'✉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
+const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',notifications:'Notificaciones',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
 const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null};
 function takeIdentityFragment(){
   const fragment=new URLSearchParams(location.hash.slice(1));
@@ -46,7 +46,7 @@ const heading=()=>names[state.page];
 const actions=()=>{
   if(state.loading||state.busy||!state.data)return '';
   if(!canWrite() && state.page!=='incidents')return '';
-  const controls={units:['unit','Añadir unidad'],charges:['charge','Emitir cuota'],payments:['payment','Registrar pago'],announcements:['announcement','Nuevo comunicado'],documents:['document','Registrar documento'],providers:['provider','Nuevo proveedor'],expenses:['expense','Registrar gasto'],incidents:['incident','Reportar incidencia']};
+  const controls={units:['unit','Añadir unidad'],charges:['charge','Emitir cuota'],payments:['payment','Registrar pago'],announcements:['announcement','Nuevo comunicado'],notifications:['unit-message','Aviso privado por unidad'],documents:['document','Registrar documento'],providers:['provider','Nuevo proveedor'],expenses:['expense','Registrar gasto'],incidents:['incident','Reportar incidencia']};
   const action=controls[state.page];return action?`<button class="primary-button" data-new="${action[0]}">+ ${action[1]}</button>`:'';
 };
 function totals(data){
@@ -77,6 +77,13 @@ function renderAnnouncements(data,small=false){
   const list=small?data.announcements.slice(0,4):filtered(data.announcements,['title','body']);
   if(!list.length)return info('No hay comunicados para esta comunidad.');
   return `<div class="live-notices">${list.map(x=>`<article class="live-notice"><div class="live-notice-symbol">◉</div><div><h3>${h(x.title)}</h3><p>${h(x.body)}</p><small>${date(x.createdAt)}</small></div></article>`).join('')}</div>`;
+}
+function renderNotifications(data){
+  if(data.role==='admin')return info('Los mensajes privados se almacenan en la bandeja del propietario asignado. Usa «Aviso privado por unidad» para crear uno. No se envían correos ni WhatsApp.');
+  if(data.role!=='owner')return info('Esta bandeja solo está disponible para propietarios autorizados.');
+  const list=filtered(data.notifications??[],['title','body','unit']);
+  if(!list.length)return info('No tienes notificaciones privadas para tus departamentos.');
+  return `<div class="live-notices">${list.map(x=>`<article class="live-notice"><div class="live-notice-symbol" aria-hidden="true">✉</div><div><h3>${h(x.title)}</h3><p>${h(x.body)}</p><small>Departamento ${h(x.unit)} · ${date(x.createdAt)} · ${x.readAt?'Leída':'No leída'}</small>${x.readAt?'':`<button type="button" class="secondary-button" data-notification-read="${h(x.id)}" aria-label="Marcar como leída: ${h(x.title)}">Marcar como leída</button>`}</div></article>`).join('')}</div>`;
 }
 function renderDocuments(data){
   const list=filtered(data.documents,['title','category','scope']);
@@ -123,7 +130,7 @@ function renderAccount(){
   <h3>Auditoría de cuenta</h3><div class="live-table-wrap"><table class="live-table"><thead><tr><th>Acción</th><th>Actor</th><th>Fecha</th></tr></thead><tbody>${d.audit.map(e=>`<tr><td>${h(e.action)}</td><td>${h(e.actorName??e.actorUserId??e.userId??'')}</td><td>${date(e.createdAt)}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 function screenContent(data){
-  const content={dashboard:renderDashboard,units:renderUnits,charges:renderCharges,payments:renderPayments,announcements:renderAnnouncements,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses,incidents:renderIncidents};
+  const content={dashboard:renderDashboard,units:renderUnits,charges:renderCharges,payments:renderPayments,announcements:renderAnnouncements,notifications:renderNotifications,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses,incidents:renderIncidents};
   return (content[state.page]??renderDashboard)(data);
 }
 function selectOptions(){return state.data.units.map(x=>`<option value="${h(x.id)}">${h(x.code)}</option>`).join('');}
@@ -135,6 +142,7 @@ function modalHtml(){
     unit:['Nueva unidad',`<label>Código<input name="code" maxlength="40" required placeholder="A-101"></label><label>Tipo<select name="kind"><option>Departamento</option><option>Casa</option><option>Local</option><option>Oficina</option></select></label><label>Ocupante (opcional)<input name="resident" maxlength="100"></label>`],
     charge:['Emitir cuota',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Gasto común"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label>`],
     payment:['Registrar pago manual',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Referencia única<input name="reference" maxlength="90" required placeholder="Transferencia-0001"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Abono de cuota"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label><p>No valida transferencias bancarias; registra solo el dato declarado por un administrador.</p>`],
+    'unit-message':['Aviso privado por departamento',`<p>Solo lo recibirá el propietario actualmente asignado a la unidad. No se envía por correo ni WhatsApp.</p><label>Departamento<select name="unitId" required>${(state.data?.units??[]).filter(x=>x.ownerUserId).map(x=>`<option value="${h(x.id)}">${h(x.code)}</option>`).join('')}</select></label><label>Título<input name="title" required maxlength="90"></label><label>Mensaje<textarea name="body" required maxlength="1000" rows="5"></textarea></label>`],
     announcement:['Nuevo comunicado',`<label>Título<input name="title" maxlength="90" required></label><label>Mensaje<textarea name="body" maxlength="2000" rows="5" required></textarea></label>`],
     provider:['Nuevo proveedor',`<label>Nombre<input name="name" maxlength="130" required></label><label>Rubro<input name="category" maxlength="70" required></label>`],
     expense:['Registrar gasto',`<label>Proveedor<select name="providerId" required>${providerOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="100.00"></label><p>Registra un gasto operativo; no equivale a contabilidad formal.</p>`],
@@ -149,7 +157,7 @@ function modalHtml(){
 function render(){
   if(state.identityFlow&&!state.identityLogin)return viewIdentity();
   if(!state.token)return viewLogin();
-  const visible=Object.keys(names).filter(x=>x!=='account'||isAccountAdmin()).filter(x=>state.data||x==='account').filter(x=>state.data?.role!=='committee'||!['charges','payments'].includes(x)).filter(x=>state.data?.role==='admin'||!['audit','providers','expenses'].includes(x));
+  const visible=Object.keys(names).filter(x=>x!=='account'||isAccountAdmin()).filter(x=>state.data||x==='account').filter(x=>state.data?.role!=='committee'||!['charges','payments','notifications'].includes(x)).filter(x=>state.data?.role==='admin'||!['audit','providers','expenses'].includes(x));
   const d=state.data;
   app.innerHTML=`<div class="app-shell live-app"><aside class="sidebar ${state.menuOpen?'sidebar--open':''}"><div class="brand"><div class="brand-mark">DC</div><div><strong>Digi<span>Condominio</span></strong><small>ADMINISTRACIÓN PRIVADA</small></div></div><p class="nav-label">MI COMUNIDAD</p><nav class="nav-list">${visible.map(p=>`<button data-page="${p}" class="nav-item ${p===state.page?'active':''}" ${p===state.page?'aria-current="page"':''}><span class="live-menu-icon">${icons[p]}</span><span>${names[p]}</span></button>`).join('')}</nav><div class="sidebar-spacer"></div><div class="sidebar-note"><strong>Sesión protegida</strong><p>Rol actual: ${h(d?.role??'')}. El acceso se limita en servidor según comunidad y unidad.</p><span>MVP EN DESARROLLO</span></div><button class="nav-item live-logout" data-logout="1">Salir de la sesión</button></aside>${state.menuOpen?'<button class="mobile-shade" data-close-menu="1" aria-label="Cerrar menú"></button>':''}<div class="main-area"><header class="topbar"><div class="topbar-left"><button data-menu="1" class="mobile-menu" aria-label="Abrir menú">☰</button><strong>${h(communityName())}</strong></div><div class="topbar-right"><span class="header-pill">${state.token==='cookie'?'Piloto privado · Acceso autenticado':'Entorno local · Acceso autenticado'}</span><span class="top-avatar">${h((state.user?.displayName??'DC').slice(0,2).toUpperCase())}</span></div></header><main class="content"><div class="intro-row"><div><div class="eyebrow">ESPACIO DE GESTIÓN</div><h1>${h(heading())}</h1><p>Información persistida localmente y filtrada según los permisos de tu cuenta.</p></div><div class="intro-actions"><select class="live-community-select" id="live-account" aria-label="Cuenta seleccionada" ${state.busy?'disabled':''}>${state.accounts.map(a=>`<option value="${h(a.id)}" ${a.id===state.accountId?'selected':''}>${h(a.name)}</option>`).join('')}</select><select class="live-community-select" id="live-community" aria-label="Comunidad seleccionada" ${state.busy||!state.communities.length?'disabled':''}>${state.communities.map(c=>`<option value="${h(c.id)}" ${c.id===state.selected?'selected':''}>${h(c.name)}</option>`).join('')}</select>${actions()}${canWrite() && ['units','charges','payments','providers','expenses'].includes(state.page)?`<button class="secondary-button" data-export="${state.page}">Exportar CSV</button>`:''}</div></div><div class="live-info">Etapa MVP local · Sin operaciones bancarias ni documentos adjuntos · No apto para producción</div>${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}${state.notice?`<p class="live-info" role="status">${h(state.notice)}</p>`:''}${!['dashboard','account'].includes(state.page)?`<div class="live-filter"><input id="live-search" aria-label="Buscar" value="${h(state.query)}" placeholder="Buscar en ${h(heading().toLowerCase())}"></div>`:''}<div class="live-view">${state.loading?info('Cargando contexto…'):state.page==='account'?renderAccount():d?screenContent(d):info('No tienes condominios asignados en esta cuenta.')}</div><footer class="footer">Digi-Condominio · MVP privado de desarrollo · ${state.token==='cookie'?'Sesión segura en este navegador':'Sesión temporal en este navegador'}</footer></main></div>${modalHtml()}</div>`;
   if(state.query){const inp=document.getElementById('live-search');if(inp && document.activeElement!==inp)inp.setSelectionRange(state.query.length,state.query.length);}
@@ -203,6 +211,18 @@ async function submitCreate(form){
   const type=form.dataset.type;
   const data=Object.fromEntries(new FormData(form));
   const routes={incident:'incidents',unit:'units',charge:'charges',payment:'payments',announcement:'announcements',document:'documents',provider:'providers',expense:'expenses'};
+  if(type==='unit-message'){
+    if(!canWrite())return;
+    state.busy=true;state.error='';
+    try{
+      const {unitId,title,body}=data;
+      await request(`${base()}/units/${unitId}/messages`,'POST',{title,body});
+      state.modal=null;state.query='';await refresh();
+      state.notice='Aviso guardado en la bandeja privada del propietario asignado. No se envió un mensaje externo.';
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}
+    finally{state.busy=false;render();}
+    return;
+  }
   if(!routes[type])return;
   try{
     if(type==='charge'||type==='payment'||type==='expense'){data.amountMinor=amountMinor(data.amount);delete data.amount;}
@@ -290,6 +310,14 @@ app.addEventListener('click',async event=>{
   if(state.loading||state.busy)return;
   const page=event.target.closest('[data-page]')?.dataset.page;
   if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();return;}
+  const readNotice=event.target.closest('[data-notification-read]');
+  if(readNotice){
+    state.busy=true;state.error='';
+    try{await request(`${base()}/notifications/${readNotice.dataset.notificationRead}/read`,'PATCH');await refresh();}
+    catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}
+    finally{state.busy=false;render();}
+    return;
+  }
   const unitOwner=event.target.closest('[data-unit-owner]');
   if(unitOwner){state.ownerTarget=unitOwner.dataset.unitOwner;state.modal='owner-assignment';state.error='';render();document.querySelector('.live-modal select')?.focus();return;}
   const replying=event.target.closest('[data-incident-comment]');

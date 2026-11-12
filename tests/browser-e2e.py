@@ -84,6 +84,19 @@ s.setMembership(id,community,'owner');s.close();'''
             page.locator('select[name=ownerUserId]').select_option(label='Propietario de prueba (owner@example.test)')
             page.get_by_role('button',name='Guardar').click()
             page.get_by_text('Propietario de prueba').first.wait_for(timeout=9000)
+            # Issue #31: private unit communication and automatic charge notice.
+            page.get_by_role('button',name='Cuotas').click()
+            page.get_by_role('button',name='Emitir cuota').click()
+            page.get_by_label('Concepto').fill('Gastos comunes simulados')
+            page.get_by_label('Importe en UM').fill('123.45')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Gastos comunes simulados').wait_for(timeout=9000)
+            page.get_by_role('button',name='Notificaciones').click()
+            page.get_by_role('button',name='Aviso privado por unidad').click()
+            page.get_by_label('Título').fill('Aviso único de la unidad')
+            page.get_by_label('Mensaje').fill('Mensaje ficticio para este departamento.')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Aviso guardado en la bandeja privada').wait_for(timeout=9000)
             page.get_by_role('button',name='Incidencias').click()
             page.get_by_role('heading',name='Incidencias').wait_for()
             page.get_by_role('button',name='Reportar incidencia').click()
@@ -130,6 +143,15 @@ s.setMembership(id,community,'owner');s.close();'''
             page.get_by_role('button',name='Unidades').click()
             page.get_by_text('A-101').wait_for(timeout=9000)
             assert page.get_by_role('button',name='Añadir unidad').count()==0
+            page.get_by_role('button',name='Notificaciones').click()
+            page.get_by_role('heading',name='Nueva cuota registrada').wait_for(timeout=9000)
+            page.get_by_role('heading',name='Aviso único de la unidad').wait_for(timeout=9000)
+            assert page.get_by_text('Mensaje ficticio para este departamento.').count()==1
+            assert page.get_by_role('button',name='Marcar como leída').count()==2
+            page.get_by_role('button',name='Marcar como leída').first.click()
+            page.wait_for_function("() => document.querySelectorAll('[data-notification-read]').length===1",timeout=9000)
+            assert any('Leída' in node.inner_text() and 'No leída' not in node.inner_text()
+                       for node in page.locator('.live-notice small').all())
             assert not errors,errors
             print(('DIRECT' if DIRECT else 'BRIDGE')+' WEB+API OK: login admin/owner, assign owner, incidents, status, XSS, responsive, 0 JS errors')
             browser.close()

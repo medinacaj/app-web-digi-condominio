@@ -41,7 +41,7 @@ export class Store {
     this.db = new DatabaseSync(location);
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const dbVersion=this.db.prepare('PRAGMA user_version').get().user_version;
-    if(dbVersion>5){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
+    if(dbVersion>6){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
     const hasCommunities=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='communities'").get();
     if(hasCommunities && !this.db.prepare('PRAGMA table_info(communities)').all().some(c=>c.name==='account_id')) {
       this.db.close(); throw new Problem(409,'Migración de cuentas requerida: use migrate:accounts con mapeo explícito y respaldo');
@@ -173,6 +173,21 @@ export class Store {
       CREATE TABLE IF NOT EXISTS subscription_events (
         id TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES accounts(id),action TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS unit_notifications (
+        id TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL,
+        unit_id TEXT NOT NULL,
+        recipient_user_id TEXT NOT NULL REFERENCES users(id),
+        kind TEXT NOT NULL CHECK(kind IN ('charge_created','payment_recorded','charge_reversed','payment_reversed','unit_message')),
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        read_at TEXT,
+        FOREIGN KEY(unit_id,community_id) REFERENCES units(id,community_id),
+        UNIQUE(community_id,recipient_user_id,kind,source_id)
+      );
+      CREATE INDEX IF NOT EXISTS ix_notifications_recipient ON unit_notifications(community_id,recipient_user_id,created_at);
       CREATE INDEX IF NOT EXISTS ix_units_community ON units(community_id);
       CREATE INDEX IF NOT EXISTS ix_charges_community ON charges(community_id,unit_id);
       CREATE INDEX IF NOT EXISTS ix_payments_community ON payments(community_id,unit_id);
@@ -181,7 +196,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
-      this.db.exec('PRAGMA user_version=5');
+      this.db.exec('PRAGMA user_version=6');
       this.db.exec('COMMIT');
     }catch(error){this.db.exec('ROLLBACK');this.db.close();throw error;}
   }
@@ -374,7 +389,7 @@ export class Store {
       FROM unit_owner_events e JOIN units u ON u.id=e.unit_id AND u.community_id=e.community_id
       LEFT JOIN users prior ON prior.id=e.old_owner_user_id LEFT JOIN users actual ON actual.id=e.new_owner_user_id
       WHERE e.community_id=? ORDER BY e.created_at DESC,e.rowid DESC LIMIT 50`),communityId) : [];
-    return { role, communityId, units, charges, payments, announcements, documents, providers, expenses, incidents, ownerChanges, audit };
+    return { role, communityId, units, charges, payments, announcements, notifications:this.notificationsFor(userId,communityId), documents, providers, expenses, incidents, ownerChanges, audit };
   }
   membersFor(userId,communityId){
     this.requireAdmin(userId,communityId);
@@ -399,6 +414,53 @@ export class Store {
     });
     return {id:eventId};
   }
+  // In-app messages addressed only to the currently assigned owner.
+  // No external delivery, bank confirmation, or use of the occupant free-text field.
+  queueUnitNotification(communityId,unitId,kind,title,body,sourceId){
+    const unit=this.db.prepare('SELECT owner_user_id FROM units WHERE id=? AND community_id=?').get(unitId,communityId);
+    if(!unit)throw new Problem(404,'Unidad no disponible');
+    if(!unit.owner_user_id)return false; // No account to notify. Never guess recipients.
+    this.db.prepare(`INSERT OR IGNORE INTO unit_notifications
+      (id,community_id,unit_id,recipient_user_id,kind,title,body,source_id,created_at)
+      VALUES(?,?,?,?,?,?,?,?,?)`).run(randomUUID(),communityId,unitId,unit.owner_user_id,kind,title,body,sourceId,dateNow());
+    return true;
+  }
+  notificationsFor(userId,communityId){
+    const role=this.member(userId,communityId);
+    if(role!=='owner')return []; // Admin uses audit, never a neighbor's private inbox.
+    return rows(this.db.prepare(`SELECT n.id,n.kind,n.title,n.body,n.created_at createdAt,
+      n.read_at readAt,u.code unit
+      FROM unit_notifications n JOIN units u ON u.id=n.unit_id AND u.community_id=n.community_id
+      WHERE n.community_id=? AND n.recipient_user_id=? AND u.owner_user_id=?
+      ORDER BY n.created_at DESC,n.rowid DESC LIMIT 100`),communityId,userId,userId);
+  }
+  readUnitNotification(userId,communityId,notificationId){
+    if(this.member(userId,communityId)!=='owner')throw new Problem(403,'Solo el destinatario puede marcar la notificación');
+    if(typeof notificationId!=='string'||!VALID.test(notificationId))throw new Problem(404,'Notificación no disponible');
+    const notice=this.db.prepare(`SELECT n.id,n.read_at FROM unit_notifications n
+      JOIN units u ON u.id=n.unit_id AND u.community_id=n.community_id
+      WHERE n.id=? AND n.community_id=? AND n.recipient_user_id=? AND u.owner_user_id=?`
+    ).get(notificationId,communityId,userId,userId);
+    if(!notice)throw new Problem(404,'Notificación no disponible');
+    if(!notice.read_at)this.writeAudited(userId,communityId,'notification.read',notificationId,()=>{
+      this.db.prepare('UPDATE unit_notifications SET read_at=? WHERE id=? AND read_at IS NULL').run(dateNow(),notificationId);
+    });
+    return {id:notificationId,read:true};
+  }
+  sendUnitMessage(userId,communityId,unitId,data){
+    this.requireAdmin(userId,communityId);
+    if(!this.unitIsIn(communityId,unitId))throw new Problem(404,'Unidad no disponible');
+    if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).sort().join(',')!=='body,title')
+      throw new Problem(400,'Indique título y mensaje solamente');
+    const title=requireText(data.title,'Título',90),body=requireText(data.body,'Mensaje',1000);
+    const owner=this.db.prepare('SELECT owner_user_id FROM units WHERE id=? AND community_id=?').get(unitId,communityId);
+    if(!owner.owner_user_id)throw new Problem(409,'Asigne un propietario antes de enviar un aviso privado');
+    const id=randomUUID();
+    this.writeAudited(userId,communityId,'notification.unit_message',id,()=>{
+      this.queueUnitNotification(communityId,unitId,'unit_message',title,body,id);
+    });
+    return {id,recordedInApp:true}; // Stored for inbox; no external delivery or proof of reading.
+  }
   unitIsIn(communityId, unitId) {
     return Boolean(this.db.prepare('SELECT id FROM units WHERE community_id=? AND id=?').get(communityId, unitId));
   }
@@ -419,7 +481,7 @@ export class Store {
     const unitId=requireText(data.unitId,'Unidad',60),period=requirePeriod(data.period),concept=requireText(data.concept,'Concepto',100),amountMinor=requireMinor(data.amountMinor);
     if(!this.unitIsIn(communityId,unitId)) throw new Problem(404,'Unidad no disponible');
     const id=randomUUID();
-    try{this.writeAudited(userId,communityId,'charge.created',id,()=>this.db.prepare('INSERT INTO charges VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,period,concept,amountMinor,dateNow()));}
+    try{this.writeAudited(userId,communityId,'charge.created',id,()=>{this.db.prepare('INSERT INTO charges VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,period,concept,amountMinor,dateNow());this.queueUnitNotification(communityId,unitId,'charge_created','Nueva cuota registrada','Hay una cuota registrada para tu departamento. Consulta tu estado de cuenta privado.',id);});}
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'Cuota duplicada para período, unidad y concepto');throw e;}
 
     return {id};
@@ -429,7 +491,7 @@ export class Store {
     const unitId=requireText(data.unitId,'Unidad',60), reference=requireText(data.reference,'Referencia',90),concept=requireText(data.concept,'Concepto',100),amountMinor=requireMinor(data.amountMinor);
     if(!this.unitIsIn(communityId,unitId)) throw new Problem(404,'Unidad no disponible');
     const id=randomUUID();
-    try{this.writeAudited(userId,communityId,'payment.created',id,()=>this.db.prepare('INSERT INTO payments VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,reference,concept,amountMinor,dateNow()));}
+    try{this.writeAudited(userId,communityId,'payment.created',id,()=>{this.db.prepare('INSERT INTO payments VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,reference,concept,amountMinor,dateNow());this.queueUnitNotification(communityId,unitId,'payment_recorded','Registro administrativo de pago','La administración registró un pago para tu unidad. No equivale a confirmación de una entidad bancaria.',id);});}
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'Referencia de pago duplicada en la comunidad');throw e;}
 
     return {id};
@@ -447,10 +509,16 @@ export class Store {
     reason=requireText(reason,'Motivo de reverso',500);
     if(reason.length<10)throw new Problem(400,'El motivo requiere 10 caracteres o más');
     const table=type==='charge'?'charges':'payments';
-    const exists=this.db.prepare(`SELECT id FROM ${table} WHERE id=? AND community_id=?`).get(entityId,communityId);
+    const exists=this.db.prepare(`SELECT id,unit_id unitId FROM ${table} WHERE id=? AND community_id=?`).get(entityId,communityId);
     if(!exists)throw new Problem(404,'Movimiento no disponible');
     const id=randomUUID();
-    try{this.writeAudited(userId,communityId,`${type}.reversed`,entityId,()=>this.db.prepare('INSERT INTO reversals VALUES (?,?,?,?,?,?,?)').run(id,communityId,type,entityId,userId,reason,dateNow()));}
+    try{this.writeAudited(userId,communityId,`${type}.reversed`,entityId,()=>{
+      this.db.prepare('INSERT INTO reversals VALUES (?,?,?,?,?,?,?)').run(id,communityId,type,entityId,userId,reason,dateNow());
+      this.queueUnitNotification(communityId,exists.unitId,type==='charge'?'charge_reversed':'payment_reversed',
+        type==='charge'?'Cuota anulada':'Registro de pago anulado',
+        'La administración anuló un movimiento de esta unidad. Revisa el estado de cuenta privado; no implica una transferencia bancaria.',
+        id);
+    });}
     catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Movimiento ya reversado');throw e;}
 
     return {id};
