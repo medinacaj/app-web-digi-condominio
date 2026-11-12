@@ -6,6 +6,7 @@
 
 - La creación de una **cuota** para una unidad con propietario vinculado genera una entrada `charge_created` en su bandeja.
 - Registrar un **pago manual** genera `payment_recorded`. Su texto **no** dice «transferencia recibida» ni «pago bancario confirmado»: solo refleja una operación registrada por el administrador.
+- Una **anulación de cuota o pago** genera un aviso correctivo para el propietario asignado, sin publicar el motivo administrativo o referencias bancarias.
 - La administración puede dirigir un **mensaje exclusivo** (`unit_message`) a una unidad que tenga propietario asignado; el mensaje se guarda solamente en la bandeja del propietario.
 - El propietario consulta «Notificaciones», puede marcar cada aviso como leído y mantiene la lectura entre sesiones. El sistema registra en auditoría la primera lectura.
 - Si la unidad cambia de propietario, el dueño anterior **pierde acceso** a los avisos de esa unidad. El nuevo titular no hereda mensajes privados anteriores; recibe los que se generen después de su vinculación.
@@ -26,7 +27,7 @@ El piloto HTTPS conserva cookies HttpOnly y protección CSRF para solicitudes qu
 
 ## Pruebas de aceptación
 
-`tests/unit-notifications.test.js` valida: propietario y unidad correctos, límites entre comunidades, rechazo a comité y usuarios externos, ausencia de importes/referencias en avisos automáticos, deduplicación, transacción cuota+notificación+auditoría, revocación al cambiar dueño, lectura de destinatario y métodos API. `tests/schema-version.test.js` verifica la migración de esquema v5→v6.
+`tests/unit-notifications.test.js` valida: anulaciones con aviso correctivo e idempotencia, propietario y unidad correctos, límites entre comunidades, rechazo a comité y usuarios externos, ausencia de importes/referencias en avisos automáticos, deduplicación, transacción cuota+notificación+auditoría, revocación al cambiar dueño, lectura de destinatario y métodos API. `tests/schema-version.test.js` verifica la migración de esquema v5→v6.
 
 ## Pendientes explícitos
 
