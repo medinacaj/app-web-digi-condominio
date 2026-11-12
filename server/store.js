@@ -42,7 +42,7 @@ export class Store {
     this.db = new DatabaseSync(location);
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const dbVersion=this.db.prepare('PRAGMA user_version').get().user_version;
-    if(dbVersion>10){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
+    if(dbVersion>11){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
     const hasCommunities=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='communities'").get();
     if(hasCommunities && !this.db.prepare('PRAGMA table_info(communities)').all().some(c=>c.name==='account_id')) {
       this.db.close(); throw new Problem(409,'Migración de cuentas requerida: use migrate:accounts con mapeo explícito y respaldo');
@@ -216,6 +216,26 @@ export class Store {
         authentication TEXT NOT NULL CHECK(authentication='authenticated_self_service')
       );
       CREATE INDEX IF NOT EXISTS ix_consent_events_user ON communication_consent_events(community_id,user_id,occurred_at);
+      CREATE TABLE IF NOT EXISTS payment_allocations (
+        id TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL REFERENCES communities(id),
+        unit_id TEXT NOT NULL,
+        payment_id TEXT NOT NULL REFERENCES payments(id),
+        charge_id TEXT NOT NULL REFERENCES charges(id),
+        amount_minor INTEGER NOT NULL CHECK(amount_minor>0),
+        created_by TEXT NOT NULL REFERENCES users(id),
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(unit_id,community_id) REFERENCES units(id,community_id),
+        UNIQUE(community_id,payment_id,charge_id)
+      );
+      CREATE INDEX IF NOT EXISTS ix_allocations_unit ON payment_allocations(community_id,unit_id,created_at);
+      CREATE TRIGGER IF NOT EXISTS check_payment_allocation_scope BEFORE INSERT ON payment_allocations
+      WHEN NOT EXISTS (
+        SELECT 1 FROM payments p JOIN charges c ON c.id=NEW.charge_id
+        WHERE p.id=NEW.payment_id AND p.community_id=NEW.community_id
+        AND c.community_id=NEW.community_id AND p.unit_id=NEW.unit_id AND c.unit_id=NEW.unit_id
+      )
+      BEGIN SELECT RAISE(ABORT,'payment allocation scope mismatch'); END;
       CREATE TABLE IF NOT EXISTS payment_reports (
         id TEXT PRIMARY KEY,
         community_id TEXT NOT NULL,
@@ -269,7 +289,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
-      this.db.exec('PRAGMA user_version=10');
+      this.db.exec('PRAGMA user_version=11');
       this.db.exec('COMMIT');
     }catch(error){this.db.exec('ROLLBACK');this.db.close();throw error;}
   }
@@ -745,6 +765,80 @@ export class Store {
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'Referencia de pago duplicada en la comunidad');throw e;}
 
     return {id};
+  }
+  // These allocations describe bookkeeping only: the payment already exists in
+  // the local ledger. Allocating NEVER moves money or confirms a bank transfer.
+  allocationSnapshot(userId,communityId,unitId){
+    const role=this.member(userId,communityId);
+    if(role!=='admin'&&role!=='owner')throw new Problem(403,'Imputaciones reservadas a titulares y administración');
+    if(typeof unitId!=='string'||!VALID.test(unitId))throw new Problem(404,'Unidad no disponible');
+    const unit=this.db.prepare('SELECT id,code,owner_user_id ownerId FROM units WHERE community_id=? AND id=?').get(communityId,unitId);
+    if(!unit||(role==='owner'&&unit.ownerId!==userId))throw new Problem(404,'Unidad no disponible');
+    const charges=rows(this.db.prepare(`SELECT c.id,c.period,c.concept,c.amount_minor amountMinor,
+      d.due_on dueOn,c.created_at createdAt
+      FROM charges c LEFT JOIN charge_deadlines d ON d.charge_id=c.id AND d.community_id=c.community_id
+      WHERE c.community_id=? AND c.unit_id=?
+        AND NOT EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id)
+      ORDER BY c.created_at,c.rowid LIMIT 501`),communityId,unitId);
+    const payments=rows(this.db.prepare(`SELECT p.id,p.reference,p.concept,p.amount_minor amountMinor,p.created_at createdAt
+      FROM payments p WHERE p.community_id=? AND p.unit_id=?
+        AND NOT EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=p.community_id AND r.entity_type='payment' AND r.entity_id=p.id)
+      ORDER BY p.created_at,p.rowid LIMIT 501`),communityId,unitId);
+    if(charges.length>500||payments.length>500)throw new Problem(409,'Demasiados movimientos: se requiere consulta paginada');
+    const allocations=rows(this.db.prepare(`SELECT a.id,a.payment_id paymentId,a.charge_id chargeId,
+      a.amount_minor amountMinor,a.created_at createdAt
+      FROM payment_allocations a JOIN payments p ON p.id=a.payment_id AND p.community_id=a.community_id
+      JOIN charges c ON c.id=a.charge_id AND c.community_id=a.community_id
+      WHERE a.community_id=? AND a.unit_id=?
+        AND NOT EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=p.community_id AND r.entity_type='payment' AND r.entity_id=p.id)
+        AND NOT EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id)
+      ORDER BY a.created_at,a.rowid LIMIT 5001`),communityId,unitId);
+    if(allocations.length>5000)throw new Problem(409,'Demasiadas imputaciones: se requiere consulta paginada');
+    const byCharge=new Map(),byPayment=new Map();
+    for(const a of allocations){
+      byCharge.set(a.chargeId,(byCharge.get(a.chargeId)??0)+a.amountMinor);
+      byPayment.set(a.paymentId,(byPayment.get(a.paymentId)??0)+a.amountMinor);
+    }
+    const chargesView=charges.map(c=>({...c,allocatedMinor:byCharge.get(c.id)??0,
+      remainingMinor:c.amountMinor-(byCharge.get(c.id)??0)}));
+    const paymentsView=payments.map(p=>({...p,allocatedMinor:byPayment.get(p.id)??0,
+      unallocatedMinor:p.amountMinor-(byPayment.get(p.id)??0)}));
+    return {unitId,unit:unit.code,charges:chargesView,payments:paymentsView,allocations,
+      openChargesMinor:chargesView.reduce((sum,c)=>sum+c.remainingMinor,0),
+      unallocatedPaymentsMinor:paymentsView.reduce((sum,p)=>sum+p.unallocatedMinor,0),
+      bankReconciled:false};
+  }
+  allocatePayment(userId,communityId,data){
+    this.requireAdmin(userId,communityId);
+    if(!data||typeof data!=='object'||Array.isArray(data)||
+      Object.keys(data).sort().join(',')!=='amountMinor,chargeId,paymentId,unitId')
+      throw new Problem(400,'Campos de imputación inválidos');
+    const {unitId,chargeId,paymentId}=data,amountMinor=requireMinor(data.amountMinor);
+    for(const id of [unitId,chargeId,paymentId])
+      if(typeof id!=='string'||!VALID.test(id))throw new Problem(404,'Movimiento no disponible');
+    const allocationId=randomUUID();
+    this.db.exec('BEGIN IMMEDIATE');
+    try{
+      let created=false;
+      this.writeAudited(userId,communityId,'payment.allocated',allocationId,()=>{
+        const view=this.allocationSnapshot(userId,communityId,unitId);
+        const charge=view.charges.find(c=>c.id===chargeId),payment=view.payments.find(p=>p.id===paymentId);
+        if(!charge||!payment)throw new Problem(404,'Cuota o pago no disponible para esta unidad');
+        if(view.allocations.some(a=>a.chargeId===chargeId&&a.paymentId===paymentId))
+          throw new Problem(409,'El pago ya tiene una imputación a esa cuota');
+        if(amountMinor>charge.remainingMinor||amountMinor>payment.unallocatedMinor)
+          throw new Problem(409,'El importe supera la cuota pendiente o el saldo libre del pago');
+        this.db.prepare('INSERT INTO payment_allocations VALUES (?,?,?,?,?,?,?,?)')
+          .run(allocationId,communityId,unitId,paymentId,chargeId,amountMinor,userId,dateNow());
+        created=true;
+      });
+      this.db.exec('COMMIT');
+      return {id:allocationId,created,amountMinor,bankReconciled:false};
+    }catch(e){
+      this.db.exec('ROLLBACK');
+      if(String(e).includes('UNIQUE'))throw new Problem(409,'Imputación duplicada');
+      throw e;
+    }
   }
   paymentReportsFor(userId,communityId){
     const role=this.member(userId,communityId);

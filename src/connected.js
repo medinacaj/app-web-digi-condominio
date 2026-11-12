@@ -2,9 +2,9 @@ import { escapeHtml as h } from './domain.js';
 const app=document.getElementById('app');
 const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
-const icons={dashboard:'▦',units:'⌂',directory:'▤',charges:'≡',payments:'▤',paymentReports:'◇',announcements:'◉',notifications:'✉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
-const names={dashboard:'Resumen',units:'Unidades',directory:'Directorio',charges:'Cuotas',payments:'Pagos',paymentReports:'Pagos informados',announcements:'Comunicados',notifications:'Notificaciones',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,personTarget:null,directoryUnit:null,directory:null,directoryBusy:false,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null,reminderPreview:null,communicationConsent:null,paymentReports:[],reportDecisionTarget:null};
+const icons={dashboard:'▦',units:'⌂',directory:'▤',charges:'≡',payments:'▤',paymentReports:'◇',allocations:'◎',announcements:'◉',notifications:'✉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
+const names={dashboard:'Resumen',units:'Unidades',directory:'Directorio',charges:'Cuotas',payments:'Pagos',paymentReports:'Pagos informados',allocations:'Imputaciones',announcements:'Comunicados',notifications:'Notificaciones',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,personTarget:null,directoryUnit:null,directory:null,directoryBusy:false,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null,reminderPreview:null,communicationConsent:null,paymentReports:[],reportDecisionTarget:null,allocationsUnit:null,allocationData:null,allocationBusy:false};
 function takeIdentityFragment(){
   const fragment=new URLSearchParams(location.hash.slice(1));
   for(const type of ['reset','invite'])if(fragment.has(type)){
@@ -17,7 +17,7 @@ takeIdentityFragment();
 let generation=0;
 class ContextChanged extends Error {}
 const isAccountAdmin=()=>state.accounts.find(a=>a.id===state.accountId)?.role==='account_admin';
-function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;state.personTarget=null;state.directory=null;state.directoryUnit=null;state.directoryBusy=false;state.reminderPreview=null;state.communicationConsent=null;state.paymentReports=[];state.reportDecisionTarget=null;}
+function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;state.personTarget=null;state.directory=null;state.directoryUnit=null;state.directoryBusy=false;state.reminderPreview=null;state.communicationConsent=null;state.paymentReports=[];state.reportDecisionTarget=null;state.allocationsUnit=null;state.allocationData=null;state.allocationBusy=false;}
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
   const token=state.token,revision=generation;
@@ -141,6 +141,42 @@ function renderConsentSettings(data){
   return `<section class="live-card" aria-label="Preferencias voluntarias de comunicaciones"><h2>Autorizaciones de comunicación</h2><p>Estas preferencias se guardan con tu sesión e historial de cambios. <strong>No verifican tu dirección de correo</strong> ni activan el envío. Los avisos internos del portal permanecen disponibles aunque rechaces correos.</p>${options}</section>`;
 }
 const paymentStatusLabels={informado:'Informado',en_revision:'En revisión',confirmado:'Confirmado por administración',rechazado:'Rechazado',reversado:'Reversado'};
+function renderAllocations(data){
+  if(!['admin','owner'].includes(data.role))return info('No tienes acceso a imputaciones de pagos.');
+  if(!data.units.length)return info('No existen unidades disponibles para consultar.');
+  const selected=state.allocationsUnit??data.units[0].id,view=state.allocationData;
+  const options=data.units.map(x=>`<option value="${h(x.id)}" ${x.id===selected?'selected':''}>${h(x.code)}</option>`).join('');
+  const head=`<section class="live-card"><h2>Pagos asociados a cuotas</h2>
+    <p>Esta operación identifica qué parte de un pago <strong>ya registrado administrativamente</strong> corresponde a una cuota. No registra transferencias, no altera el saldo total y no constituye conciliación bancaria.</p>
+    <label>Departamento<select id="allocations-unit-select" aria-label="Departamento para imputaciones" class="live-community-select">${options}</select></label></section>`;
+  if(state.allocationBusy)return head+info('Cargando imputaciones privadas…');
+  if(!view)return head+info('Selecciona un departamento para consultar sus cargos y pagos.');
+  const charges=filtered(view.charges,['period','concept','dueOn']);
+  const payments=filtered(view.payments,['reference','concept']);
+  const eligibleCharges=view.charges.filter(x=>x.remainingMinor>0);
+  const eligiblePayments=view.payments.filter(x=>x.unallocatedMinor>0);
+  const chargesTable=charges.length?`<div class="live-table-wrap"><table class="live-table">
+    <thead><tr><th>Cuota</th><th>Vencimiento</th><th>Importe</th><th>Asignado</th><th>Sin asignar</th></tr></thead><tbody>
+    ${charges.map(x=>`<tr><td>${h(x.period)} · ${h(x.concept)}</td><td>${h(x.dueOn??'Sin fecha')}</td><td class="money">${money(x.amountMinor)}</td><td class="money">${money(x.allocatedMinor)}</td><td class="money">${money(x.remainingMinor)}</td></tr>`).join('')}
+    </tbody></table></div>`:info('Sin cuotas activas.');
+  const paymentsTable=payments.length?`<div class="live-table-wrap"><table class="live-table">
+    <thead><tr><th>Referencia del pago</th><th>Total</th><th>Asignado</th><th>Sin asignar</th></tr></thead><tbody>
+    ${payments.map(x=>`<tr><td>${h(x.reference)}</td><td class="money">${money(x.amountMinor)}</td><td class="money">${money(x.allocatedMinor)}</td><td class="money">${money(x.unallocatedMinor)}</td></tr>`).join('')}
+    </tbody></table></div>`:info('Sin pagos administrativos activos.');
+  const form=data.role==='admin'&&eligibleCharges.length&&eligiblePayments.length?`<section class="live-card">
+    <h3>Imputar un pago a una cuota</h3><form id="allocation-form">
+    <label>Pago con importe disponible<select name="paymentId" required>
+      ${eligiblePayments.map(x=>`<option value="${h(x.id)}">${h(x.reference)} · libre ${money(x.unallocatedMinor)}</option>`).join('')}
+    </select></label><label>Cuota pendiente<select name="chargeId" required>
+      ${eligibleCharges.map(x=>`<option value="${h(x.id)}">${h(x.period)} · ${h(x.concept)} · sin asignar ${money(x.remainingMinor)}</option>`).join('')}
+    </select></label><label>Importe a imputar en UM<input name="amount" required inputmode="decimal" placeholder="50.00"></label>
+    <button type="submit" class="primary-button">Guardar imputación</button></form>
+    <p><small>Operación auditada. No confirma pagos bancarios ni modifica su valor.</small></p></section>`:'';
+  return head+`<section class="live-card"><h3>${h(view.unit)} · Imputaciones</h3>
+    <p>Cuotas sin asignar: <strong>${money(view.openChargesMinor)}</strong>. Pagos sin asignar: <strong>${money(view.unallocatedPaymentsMinor)}</strong>.</p>
+    <p>Son importes administrativos: no acreditan deuda bancaria certificada ni alteran el saldo global.</p></section>`
+    +'<h3>Cuotas activas</h3>'+chargesTable+'<h3>Pagos activos</h3>'+paymentsTable+form;
+}
 function renderPaymentReports(data){
   if(!['admin','owner'].includes(data.role))return info('No tienes permiso para ver reportes de pago.');
   const entries=filtered(state.paymentReports??[],['reference','concept','unit','status']);
@@ -205,7 +241,7 @@ function renderAccount(){
   <h3>Auditoría de cuenta</h3><div class="live-table-wrap"><table class="live-table"><thead><tr><th>Acción</th><th>Actor</th><th>Fecha</th></tr></thead><tbody>${d.audit.map(e=>`<tr><td>${h(e.action)}</td><td>${h(e.actorName??e.actorUserId??e.userId??'')}</td><td>${date(e.createdAt)}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 function screenContent(data){
-  const content={dashboard:renderDashboard,units:renderUnits,directory:renderDirectory,charges:renderCharges,payments:renderPayments,paymentReports:renderPaymentReports,announcements:renderAnnouncements,notifications:renderNotifications,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses,incidents:renderIncidents};
+  const content={dashboard:renderDashboard,units:renderUnits,directory:renderDirectory,charges:renderCharges,payments:renderPayments,paymentReports:renderPaymentReports,allocations:renderAllocations,announcements:renderAnnouncements,notifications:renderNotifications,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses,incidents:renderIncidents};
   return (content[state.page]??renderDashboard)(data);
 }
 function selectOptions(){return state.data.units.map(x=>`<option value="${h(x.id)}">${h(x.code)}</option>`).join('');}
@@ -237,7 +273,7 @@ function modalHtml(){
 function render(){
   if(state.identityFlow&&!state.identityLogin)return viewIdentity();
   if(!state.token)return viewLogin();
-  const visible=Object.keys(names).filter(x=>x!=='account'||isAccountAdmin()).filter(x=>state.data||x==='account').filter(x=>state.data?.role!=='committee'||!['charges','payments','notifications','paymentReports'].includes(x)).filter(x=>state.data?.role==='admin'||!['audit','providers','expenses','directory'].includes(x));
+  const visible=Object.keys(names).filter(x=>x!=='account'||isAccountAdmin()).filter(x=>state.data||x==='account').filter(x=>state.data?.role!=='committee'||!['charges','payments','notifications','paymentReports','allocations'].includes(x)).filter(x=>state.data?.role==='admin'||!['audit','providers','expenses','directory'].includes(x));
   const d=state.data;
   app.innerHTML=`<div class="app-shell live-app"><aside class="sidebar ${state.menuOpen?'sidebar--open':''}"><div class="brand"><div class="brand-mark">DC</div><div><strong>Digi<span>Condominio</span></strong><small>ADMINISTRACIÓN PRIVADA</small></div></div><p class="nav-label">MI COMUNIDAD</p><nav class="nav-list">${visible.map(p=>`<button data-page="${p}" class="nav-item ${p===state.page?'active':''}" ${p===state.page?'aria-current="page"':''}><span class="live-menu-icon">${icons[p]}</span><span>${names[p]}</span></button>`).join('')}</nav><div class="sidebar-spacer"></div><div class="sidebar-note"><strong>Sesión protegida</strong><p>Rol actual: ${h(d?.role??'')}. El acceso se limita en servidor según comunidad y unidad.</p><span>MVP EN DESARROLLO</span></div><button class="nav-item live-logout" data-logout="1">Salir de la sesión</button></aside>${state.menuOpen?'<button class="mobile-shade" data-close-menu="1" aria-label="Cerrar menú"></button>':''}<div class="main-area"><header class="topbar"><div class="topbar-left"><button data-menu="1" class="mobile-menu" aria-label="Abrir menú">☰</button><strong>${h(communityName())}</strong></div><div class="topbar-right"><span class="header-pill">${state.token==='cookie'?'Piloto privado · Acceso autenticado':'Entorno local · Acceso autenticado'}</span><span class="top-avatar">${h((state.user?.displayName??'DC').slice(0,2).toUpperCase())}</span></div></header><main class="content"><div class="intro-row"><div><div class="eyebrow">ESPACIO DE GESTIÓN</div><h1>${h(heading())}</h1><p>Información persistida localmente y filtrada según los permisos de tu cuenta.</p></div><div class="intro-actions"><select class="live-community-select" id="live-account" aria-label="Cuenta seleccionada" ${state.busy?'disabled':''}>${state.accounts.map(a=>`<option value="${h(a.id)}" ${a.id===state.accountId?'selected':''}>${h(a.name)}</option>`).join('')}</select><select class="live-community-select" id="live-community" aria-label="Comunidad seleccionada" ${state.busy||!state.communities.length?'disabled':''}>${state.communities.map(c=>`<option value="${h(c.id)}" ${c.id===state.selected?'selected':''}>${h(c.name)}</option>`).join('')}</select>${actions()}${canWrite() && ['units','charges','payments','providers','expenses'].includes(state.page)?`<button class="secondary-button" data-export="${state.page}">Exportar CSV</button>`:''}</div></div><div class="live-info">Etapa MVP local · Sin operaciones bancarias ni documentos adjuntos · No apto para producción</div>${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}${state.notice?`<p class="live-info" role="status">${h(state.notice)}</p>`:''}${!['dashboard','account'].includes(state.page)?`<div class="live-filter"><input id="live-search" aria-label="Buscar" value="${h(state.query)}" placeholder="Buscar en ${h(heading().toLowerCase())}"></div>`:''}<div class="live-view">${state.loading?info('Cargando contexto…'):state.page==='account'?renderAccount():d?screenContent(d):info('No tienes condominios asignados en esta cuenta.')}</div><footer class="footer">Digi-Condominio · MVP privado de desarrollo · ${state.token==='cookie'?'Sesión segura en este navegador':'Sesión temporal en este navegador'}</footer></main></div>${modalHtml()}</div>`;
   if(state.query){const inp=document.getElementById('live-search');if(inp && document.activeElement!==inp)inp.setSelectionRange(state.query.length,state.query.length);}
@@ -245,6 +281,7 @@ function render(){
 async function refresh(){
   if(!state.token)return;
   state.reminderPreview=null;state.communicationConsent=null;state.paymentReports=[];
+  state.allocationsUnit=null;state.allocationData=null;
   const revision=++generation,accountId=state.accountId,communityId=state.selected;
   state.loading=true;state.data=null;state.members=[];state.accountData=null;render();
   try{
@@ -269,6 +306,17 @@ async function refresh(){
     state.error='';
   }catch(e){if(revision===generation&&!(e instanceof ContextChanged)){state.data=null;state.members=[];state.accountData=null;state.error=e.message;}}
   finally{if(revision===generation){state.loading=false;render();}}
+}
+async function loadUnitAllocations(unitId=state.allocationsUnit??state.data?.units?.[0]?.id){
+  if(!state.data||!['admin','owner'].includes(state.data.role)||!unitId)return;
+  state.allocationsUnit=unitId;state.allocationData=null;state.allocationBusy=true;render();
+  const revision=generation,community=state.selected;
+  try{
+    const result=await request(base()+'/units/'+unitId+'/allocations');
+    if(revision!==generation||community!==state.selected||state.allocationsUnit!==unitId)return;
+    state.allocationData=result;state.error='';
+  }catch(e){if(e instanceof ContextChanged)return;if(revision===generation)state.error=e.message;}
+  finally{if(revision===generation&&unitId===state.allocationsUnit){state.allocationBusy=false;render();}}
 }
 async function loadUnitDirectory(unitId=state.directoryUnit??state.data?.units?.[0]?.id){
   if(!state.data||state.data.role!=='admin'||!unitId)return;
@@ -374,6 +422,20 @@ async function submitCreate(form){
   }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}finally{state.busy=false;render();}
 }
 app.addEventListener('submit',async event=>{
+  if(event.target.id==='allocation-form'){
+    event.preventDefault();
+    if(!canWrite()||state.page!=='allocations'||!state.allocationsUnit)return;
+    const data=Object.fromEntries(new FormData(event.target)),unitId=state.allocationsUnit;
+    state.busy=true;state.error='';render();
+    try{
+      await request(base()+'/units/'+unitId+'/allocations','POST',
+        {chargeId:data.chargeId,paymentId:data.paymentId,amountMinor:amountMinor(data.amount)});
+      await loadUnitAllocations(unitId);
+      state.notice='Imputación administrativa registrada. El saldo total no cambia y no se confirmó ningún pago bancario.';
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}
+    return;
+  }
   if(event.target.id==='identity-form'){
     event.preventDefault();if(state.busy)return;
     const input=Object.fromEntries(new FormData(event.target)),flow=state.identityFlow;
@@ -450,7 +512,7 @@ app.addEventListener('click',async event=>{
   }
   if(state.loading||state.busy)return;
   const page=event.target.closest('[data-page]')?.dataset.page;
-  if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();if(page==='directory')void loadUnitDirectory();return;}
+  if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();if(page==='directory')void loadUnitDirectory();if(page==='allocations')void loadUnitAllocations();return;}
   const personEdit=event.target.closest('[data-person-edit]');
   if(personEdit&&canWrite()&&state.page==='directory'){
     state.personTarget=personEdit.dataset.personEdit;state.modal='person-edit';state.error='';render();
@@ -541,6 +603,9 @@ app.addEventListener('change',async event=>{
     catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
     finally{state.busy=false;render();}
     return;
+  }
+  if(event.target.id==='allocations-unit-select'){
+    state.query='';state.error='';await loadUnitAllocations(event.target.value);return;
   }
   if(event.target.id==='directory-unit-select'){
     state.query='';state.error='';state.personTarget=null;
