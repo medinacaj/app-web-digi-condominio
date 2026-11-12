@@ -185,6 +185,19 @@ export function createApp(store,options={}){
           if(operation==='prepare'&&req.method==='POST')return send(res,201,store.prepareDueReminders(user.id,communityId));
           throw new Problem(405,'Método no permitido');
         }
+        const allocationMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/units\/([a-zA-Z0-9-]{36})\/allocations$/.exec(pathname);
+        if(allocationMatch){
+          const [,communityId,unitId]=allocationMatch;
+          if(req.method==='GET')return send(res,200,store.allocationSnapshot(user.id,communityId,unitId));
+          if(req.method==='POST'){
+            const input=await body(req);
+            if(!input||typeof input!=='object'||Array.isArray(input)||
+              Object.keys(input).sort().join(',')!=='amountMinor,chargeId,paymentId')
+              throw new Problem(400,'Campos de imputación inválidos');
+            return send(res,201,store.allocatePayment(user.id,communityId,{...input,unitId}));
+          }
+          throw new Problem(405,'Método no permitido');
+        }
         const reportDecision=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/payment-reports\/([a-zA-Z0-9-]{36})\/decision$/.exec(pathname);
         if(reportDecision){
           if(req.method!=='POST')throw new Problem(405,'Método no permitido');
