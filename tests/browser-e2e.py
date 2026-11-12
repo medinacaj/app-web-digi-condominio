@@ -197,6 +197,7 @@ s.setMembership(id,community,'owner');s.close();'''
             page.get_by_role('button',name='Retirar autorización').wait_for(timeout=9000)
             page.get_by_text('Preferencia registrada para tu cuenta').wait_for(timeout=9000)
             page.get_by_role('button',name='Retirar autorización').click()
+            page.wait_for_function("() => document.querySelectorAll('[data-consent-enabled=\"true\"]').length===2",timeout=9000)
             assert page.get_by_role('button',name='Autorizar futuros correos').count()==2
             page.get_by_role('heading',name='Nueva cuota registrada').wait_for(timeout=9000)
             page.get_by_role('heading',name='Recordatorio próximo vencimiento').wait_for(timeout=9000)
