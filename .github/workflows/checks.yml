@@ -50,10 +50,11 @@ jobs:
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: digicondominio-directorio-recordatorios-preview
+          name: digicondominio-finanzas-privadas-preview
           path: |
             artifacts/digi-directorio-*.png
             artifacts/digi-recordatorios-*.png
+            artifacts/digi-pagos-reportados-*.png
           retention-days: 7
           if-no-files-found: error
 
