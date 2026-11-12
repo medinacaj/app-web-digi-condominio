@@ -141,6 +141,42 @@ function renderConsentSettings(data){
   return `<section class="live-card" aria-label="Preferencias voluntarias de comunicaciones"><h2>Autorizaciones de comunicación</h2><p>Estas preferencias se guardan con tu sesión e historial de cambios. <strong>No verifican tu dirección de correo</strong> ni activan el envío. Los avisos internos del portal permanecen disponibles aunque rechaces correos.</p>${options}</section>`;
 }
 const paymentStatusLabels={informado:'Informado',en_revision:'En revisión',confirmado:'Confirmado por administración',rechazado:'Rechazado',reversado:'Reversado'};
+function renderAllocations(data){
+  if(!['admin','owner'].includes(data.role))return info('No tienes acceso a imputaciones de pagos.');
+  if(!data.units.length)return info('No existen unidades disponibles para consultar.');
+  const selected=state.allocationsUnit??data.units[0].id,view=state.allocationData;
+  const options=data.units.map(x=>`<option value="${h(x.id)}" ${x.id===selected?'selected':''}>${h(x.code)}</option>`).join('');
+  const head=`<section class="live-card"><h2>Pagos asociados a cuotas</h2>
+    <p>Esta operación identifica qué parte de un pago <strong>ya registrado administrativamente</strong> corresponde a una cuota. No registra transferencias, no altera el saldo total y no constituye conciliación bancaria.</p>
+    <label>Departamento<select id="allocations-unit-select" aria-label="Departamento para imputaciones" class="live-community-select">${options}</select></label></section>`;
+  if(state.allocationBusy)return head+info('Cargando imputaciones privadas…');
+  if(!view)return head+info('Selecciona un departamento para consultar sus cargos y pagos.');
+  const charges=filtered(view.charges,['period','concept','dueOn']);
+  const payments=filtered(view.payments,['reference','concept']);
+  const eligibleCharges=view.charges.filter(x=>x.remainingMinor>0);
+  const eligiblePayments=view.payments.filter(x=>x.unallocatedMinor>0);
+  const chargesTable=charges.length?`<div class="live-table-wrap"><table class="live-table">
+    <thead><tr><th>Cuota</th><th>Vencimiento</th><th>Importe</th><th>Asignado</th><th>Sin asignar</th></tr></thead><tbody>
+    ${charges.map(x=>`<tr><td>${h(x.period)} · ${h(x.concept)}</td><td>${h(x.dueOn??'Sin fecha')}</td><td class="money">${money(x.amountMinor)}</td><td class="money">${money(x.allocatedMinor)}</td><td class="money">${money(x.remainingMinor)}</td></tr>`).join('')}
+    </tbody></table></div>`:info('Sin cuotas activas.');
+  const paymentsTable=payments.length?`<div class="live-table-wrap"><table class="live-table">
+    <thead><tr><th>Referencia del pago</th><th>Total</th><th>Asignado</th><th>Sin asignar</th></tr></thead><tbody>
+    ${payments.map(x=>`<tr><td>${h(x.reference)}</td><td class="money">${money(x.amountMinor)}</td><td class="money">${money(x.allocatedMinor)}</td><td class="money">${money(x.unallocatedMinor)}</td></tr>`).join('')}
+    </tbody></table></div>`:info('Sin pagos administrativos activos.');
+  const form=data.role==='admin'&&eligibleCharges.length&&eligiblePayments.length?`<section class="live-card">
+    <h3>Imputar un pago a una cuota</h3><form id="allocation-form">
+    <label>Pago con importe disponible<select name="paymentId" required>
+      ${eligiblePayments.map(x=>`<option value="${h(x.id)}">${h(x.reference)} · libre ${money(x.unallocatedMinor)}</option>`).join('')}
+    </select></label><label>Cuota pendiente<select name="chargeId" required>
+      ${eligibleCharges.map(x=>`<option value="${h(x.id)}">${h(x.period)} · ${h(x.concept)} · sin asignar ${money(x.remainingMinor)}</option>`).join('')}
+    </select></label><label>Importe a imputar en UM<input name="amount" required inputmode="decimal" placeholder="50.00"></label>
+    <button type="submit" class="primary-button">Guardar imputación</button></form>
+    <p><small>Operación auditada. No confirma pagos bancarios ni modifica su valor.</small></p></section>`:'';
+  return head+`<section class="live-card"><h3>${h(view.unit)} · Imputaciones</h3>
+    <p>Cuotas sin asignar: <strong>${money(view.openChargesMinor)}</strong>. Pagos sin asignar: <strong>${money(view.unallocatedPaymentsMinor)}</strong>.</p>
+    <p>Son importes administrativos: no acreditan deuda bancaria certificada ni alteran el saldo global.</p></section>`
+    +'<h3>Cuotas activas</h3>'+chargesTable+'<h3>Pagos activos</h3>'+paymentsTable+form;
+}
 function renderPaymentReports(data){
   if(!['admin','owner'].includes(data.role))return info('No tienes permiso para ver reportes de pago.');
   const entries=filtered(state.paymentReports??[],['reference','concept','unit','status']);
