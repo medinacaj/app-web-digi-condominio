@@ -39,17 +39,33 @@ export class Store {
   constructor(location = ':memory:') {
     if (location !== ':memory:') mkdirSync(dirname(location), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(location);
-    this.db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
+    this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const dbVersion=this.db.prepare('PRAGMA user_version').get().user_version;
-    if(dbVersion>3){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
-    this.db.exec('BEGIN IMMEDIATE');
+    if(dbVersion>5){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
+    const hasCommunities=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='communities'").get();
+    if(hasCommunities && !this.db.prepare('PRAGMA table_info(communities)').all().some(c=>c.name==='account_id')) {
+      this.db.close(); throw new Problem(409,'Migración de cuentas requerida: use migrate:accounts con mapeo explícito y respaldo');
+    }
+    this.db.exec('PRAGMA journal_mode=WAL; BEGIN IMMEDIATE');
     try{this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
         password_hash TEXT NOT NULL, created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS accounts (
+        id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('independent','management_company')),created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS account_memberships (
+        account_id TEXT NOT NULL REFERENCES accounts(id),user_id TEXT NOT NULL REFERENCES users(id),
+        role TEXT NOT NULL CHECK(role IN ('account_admin','member')),PRIMARY KEY(account_id,user_id)
+      );
+      CREATE TABLE IF NOT EXISTS account_audit_events (
+        id TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES accounts(id),user_id TEXT NOT NULL REFERENCES users(id),
+        action TEXT NOT NULL,entity_id TEXT NOT NULL,created_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS communities (
-        id TEXT PRIMARY KEY, name TEXT NOT NULL, address TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, address TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+        account_id TEXT NOT NULL REFERENCES accounts(id)
       );
       CREATE TABLE IF NOT EXISTS memberships (
         user_id TEXT NOT NULL REFERENCES users(id), community_id TEXT NOT NULL REFERENCES communities(id),
@@ -137,6 +153,26 @@ export class Store {
         user_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL,
         entity_id TEXT NOT NULL, created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS invitations (
+        id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, account_id TEXT NOT NULL REFERENCES accounts(id),
+        issuer_id TEXT NOT NULL REFERENCES users(id), email TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('account_admin','member')), community_id TEXT REFERENCES communities(id),
+        community_role TEXT CHECK(community_role IN ('admin','committee','owner')), expires_at TEXT NOT NULL, consumed_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),expires_at TEXT NOT NULL,consumed_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS password_reset_requests (email_hash TEXT PRIMARY KEY,requested_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS identity_audit_events (
+        id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),action TEXT NOT NULL,created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS account_subscriptions (
+        account_id TEXT PRIMARY KEY REFERENCES accounts(id),plan TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('trial','active','suspended')),expires_at TEXT,updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS subscription_events (
+        id TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES accounts(id),action TEXT NOT NULL,detail TEXT NOT NULL,created_at TEXT NOT NULL
+      );
       CREATE INDEX IF NOT EXISTS ix_units_community ON units(community_id);
       CREATE INDEX IF NOT EXISTS ix_charges_community ON charges(community_id,unit_id);
       CREATE INDEX IF NOT EXISTS ix_payments_community ON payments(community_id,unit_id);
@@ -145,7 +181,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
-      this.db.exec('PRAGMA user_version=3');
+      this.db.exec('PRAGMA user_version=5');
       this.db.exec('COMMIT');
     }catch(error){this.db.exec('ROLLBACK');this.db.close();throw error;}
   }
@@ -160,16 +196,30 @@ export class Store {
     catch (error) { if (String(error).includes('UNIQUE')) throw new Problem(409, 'Correo ya registrado'); throw error; }
     return id;
   }
-  createCommunity(name, address = '') {
+  createCommunity(name, address = '', accountId) {
     name = requireText(name, 'Comunidad', 130);
     if (typeof address !== 'string' || address.length > 200) throw new Problem(400, 'Dirección inválida');
     const id = randomUUID();
-    this.db.prepare('INSERT INTO communities VALUES (?,?,?,?)').run(id, name, address.trim(), dateNow());
+    if(!this.db.prepare('SELECT 1 FROM accounts WHERE id=?').get(accountId??null)) throw new Problem(400,'Cuenta obligatoria o no disponible');
+    this.db.prepare('INSERT INTO communities VALUES (?,?,?,?,?)').run(id, name, address.trim(), dateNow(),accountId);
     return id;
   }
   setMembership(userId, communityId, role) {
     if (!roles.has(role)) throw new Problem(400, 'Rol inválido');
-    this.db.prepare('INSERT INTO memberships VALUES (?,?,?)').run(userId, communityId, role);
+    const community=this.db.prepare('SELECT account_id FROM communities WHERE id=?').get(communityId);
+    if(!community) throw new Problem(404,'Comunidad no disponible');
+    this.atomic(()=>{
+      this.db.prepare("INSERT OR IGNORE INTO account_memberships VALUES (?,?,'member')").run(community.account_id,userId);
+      this.db.prepare('INSERT INTO memberships VALUES (?,?,?)').run(userId, communityId, role);
+      this.invalidateInvitations(community.account_id,userId);
+    });
+  }
+  changePassword(userId,password) {
+    const hash=hashPassword(password);
+    return this.atomic(()=>{
+      if(!this.db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hash,userId).changes)throw new Problem(404,'Usuario no disponible');
+      this.db.prepare('DELETE FROM sessions WHERE user_id=?').run(userId);
+    });
   }
   authenticate(email, password) {
     if (typeof email !== 'string' || typeof password !== 'string' || email.length > 254 || password.length > 128) return null;
@@ -191,14 +241,93 @@ export class Store {
     return record ? { ...record } : null;
   }
   logout(token) { if (typeof token === 'string' && /^[a-f0-9]{64}$/.test(token)) this.db.prepare('DELETE FROM sessions WHERE token_hash=?').run(fingerprint(token)); }
-  communitiesFor(userId) {
-    return rows(this.db.prepare(`SELECT c.id,c.name,c.address,m.role,
+  accountsFor(userId) {
+    return rows(this.db.prepare(`SELECT a.id,a.name,a.kind,m.role FROM accounts a JOIN account_memberships m ON m.account_id=a.id WHERE m.user_id=? ORDER BY a.name`),userId);
+  }
+  accountMember(userId,accountId) {
+    const row=this.db.prepare('SELECT role FROM account_memberships WHERE account_id=? AND user_id=?').get(accountId,userId);
+    if(!row) throw new Problem(404,'Cuenta no disponible');
+    return row.role;
+  }
+  requireAccountAdmin(userId,accountId) {
+    if(this.accountMember(userId,accountId)!=='account_admin') throw new Problem(403,'Acceso no autorizado');
+  }
+  atomic(write) {
+    this.db.exec('SAVEPOINT account_write');
+    try { const result=write(); this.db.exec('RELEASE account_write'); return result; }
+    catch(error){this.db.exec('ROLLBACK TO account_write; RELEASE account_write');throw error;}
+  }
+  accountAudit(actorId,accountId,action,entityId) {
+    this.db.prepare('INSERT INTO account_audit_events VALUES (?,?,?,?,?,?)').run(randomUUID(),accountId,actorId,action,entityId,dateNow());
+  }
+  createAccount(adminUserId,{name,kind}) {
+    name=requireText(name,'Cuenta',130);
+    if(!['independent','management_company'].includes(kind))throw new Problem(400,'Tipo de cuenta inválido');
+    if(!this.db.prepare('SELECT 1 FROM users WHERE id=?').get(adminUserId))throw new Problem(400,'Administrador no disponible');
+    const id=randomUUID();
+    this.atomic(()=>{
+      this.db.prepare('INSERT INTO accounts VALUES (?,?,?,?)').run(id,name,kind,dateNow());
+      this.db.prepare("INSERT INTO account_memberships VALUES (?,?,'account_admin')").run(id,adminUserId);
+      this.accountAudit(adminUserId,id,'account.created',id);
+    });
+    return {id};
+  }
+  addCommunity(actorId,accountId,{name,address=''}) {
+    this.requireAccountAdmin(actorId,accountId);
+    return this.atomic(()=>{const id=this.createCommunity(name,address,accountId);this.accountAudit(actorId,accountId,'community.created',id);return {id};});
+  }
+  accountOverview(actorId,accountId) {
+    this.requireAccountAdmin(actorId,accountId);
+    return {
+      account:{...this.db.prepare('SELECT id,name,kind FROM accounts WHERE id=?').get(accountId),role:'account_admin'},
+      communities:rows(this.db.prepare('SELECT id,name,address FROM communities WHERE account_id=? ORDER BY name'),accountId),
+      members:rows(this.db.prepare('SELECT u.id,u.email,u.display_name displayName,m.role FROM account_memberships m JOIN users u ON u.id=m.user_id WHERE m.account_id=? ORDER BY u.display_name'),accountId),
+      assignments:rows(this.db.prepare('SELECT m.user_id userId,m.community_id communityId,m.role FROM memberships m JOIN communities c ON c.id=m.community_id JOIN account_memberships a ON a.account_id=c.account_id AND a.user_id=m.user_id WHERE c.account_id=?'),accountId),
+      audit:rows(this.db.prepare('SELECT id,user_id userId,action,entity_id entityId,created_at createdAt FROM account_audit_events WHERE account_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100'),accountId)
+    };
+  }
+  invalidateInvitations(accountId,userId) {
+    this.db.prepare('DELETE FROM invitations WHERE account_id=? AND email=(SELECT email FROM users WHERE id=?) AND consumed_at IS NULL').run(accountId,userId);
+  }
+  changeAccountMember(actorId,accountId,targetUserId,roleOrNull) {
+    this.requireAccountAdmin(actorId,accountId);
+    if(roleOrNull!==null&&!['account_admin','member'].includes(roleOrNull))throw new Problem(400,'Rol de cuenta inválido');
+    if(!this.db.prepare('SELECT 1 FROM users WHERE id=?').get(targetUserId))throw new Problem(404,'Usuario no disponible');
+    this.atomic(()=>{
+      const old=this.db.prepare('SELECT role FROM account_memberships WHERE account_id=? AND user_id=?').get(accountId,targetUserId);
+      if(old?.role==='account_admin' && roleOrNull!=='account_admin' && this.db.prepare("SELECT COUNT(*) n FROM account_memberships WHERE account_id=? AND role='account_admin'").get(accountId).n===1)throw new Problem(409,'No se puede revocar el último administrador de cuenta');
+      if(roleOrNull===null)this.db.prepare('DELETE FROM account_memberships WHERE account_id=? AND user_id=?').run(accountId,targetUserId);
+      else this.db.prepare('INSERT INTO account_memberships VALUES (?,?,?) ON CONFLICT(account_id,user_id) DO UPDATE SET role=excluded.role').run(accountId,targetUserId,roleOrNull);
+      this.invalidateInvitations(accountId,targetUserId);
+      this.accountAudit(actorId,accountId,roleOrNull===null?'account.member_revoked':'account.member_changed',targetUserId);
+    });
+    return {ok:true};
+  }
+  changeCommunityMember(actorId,accountId,communityId,targetUserId,roleOrNull) {
+    this.requireAccountAdmin(actorId,accountId);
+    if(!this.db.prepare('SELECT 1 FROM communities WHERE id=? AND account_id=?').get(communityId,accountId))throw new Problem(404,'Comunidad no disponible');
+    if(roleOrNull!==null&&!roles.has(roleOrNull))throw new Problem(400,'Rol inválido');
+    this.accountMember(targetUserId,accountId);
+    this.atomic(()=>{
+      if(roleOrNull===null)this.db.prepare('DELETE FROM memberships WHERE user_id=? AND community_id=?').run(targetUserId,communityId);
+      else this.db.prepare('INSERT INTO memberships VALUES (?,?,?) ON CONFLICT(user_id,community_id) DO UPDATE SET role=excluded.role').run(targetUserId,communityId,roleOrNull);
+      this.invalidateInvitations(accountId,targetUserId);
+      this.accountAudit(actorId,accountId,roleOrNull===null?'community.member_revoked':'community.member_changed',`${communityId}:${targetUserId}`);
+    });
+    return {ok:true};
+  }
+  communitiesFor(userId,accountId) {
+    if(accountId!==undefined)this.accountMember(userId,accountId);
+    return rows(this.db.prepare(`SELECT c.id,c.name,c.address,c.account_id accountId,m.role,
        (SELECT COUNT(*) FROM units u WHERE u.community_id=c.id AND (m.role<>'owner' OR u.owner_user_id=?)) units
-       FROM memberships m JOIN communities c ON m.community_id=c.id WHERE m.user_id=? ORDER BY c.name`), userId, userId);
+       FROM memberships m JOIN communities c ON m.community_id=c.id
+       JOIN account_memberships a ON a.account_id=c.account_id AND a.user_id=m.user_id
+       WHERE m.user_id=?${accountId===undefined?'':' AND c.account_id=?'} ORDER BY c.name`),userId,userId,...(accountId===undefined?[]:[accountId]));
   }
   member(userId, communityId) {
     if (!/^[a-f0-9-]{36}$/.test(communityId ?? '')) throw new Problem(404, 'Comunidad no disponible');
-    const m = this.db.prepare('SELECT role FROM memberships WHERE user_id=? AND community_id=?').get(userId, communityId);
+    const m = this.db.prepare(`SELECT m.role FROM memberships m JOIN communities c ON c.id=m.community_id
+      JOIN account_memberships a ON a.account_id=c.account_id AND a.user_id=m.user_id WHERE m.user_id=? AND m.community_id=?`).get(userId, communityId);
     if (!m) throw new Problem(404, 'Comunidad no disponible');
     return m.role;
   }
@@ -251,6 +380,7 @@ export class Store {
     this.requireAdmin(userId,communityId);
     return rows(this.db.prepare(`SELECT u.id,u.display_name displayName,u.email,m.role
       FROM memberships m JOIN users u ON u.id=m.user_id
+      JOIN communities c ON c.id=m.community_id JOIN account_memberships a ON a.account_id=c.account_id AND a.user_id=m.user_id
       WHERE m.community_id=? ORDER BY m.role,u.display_name`),communityId);
   }
   assignUnitOwner(userId,communityId,unitId,ownerUserId){
@@ -259,7 +389,7 @@ export class Store {
     const unit=this.db.prepare('SELECT owner_user_id FROM units WHERE id=? AND community_id=?').get(unitId,communityId);
     if(!unit)throw new Problem(404,'Unidad no disponible');
     const newOwner=ownerUserId==null||ownerUserId===''?null:requireText(ownerUserId,'Propietario',80);
-    if(newOwner&&!this.db.prepare(`SELECT 1 FROM memberships WHERE user_id=? AND community_id=? AND role='owner'`).get(newOwner,communityId))
+    if(newOwner&&!this.db.prepare(`SELECT 1 FROM memberships m JOIN communities c ON c.id=m.community_id JOIN account_memberships a ON a.account_id=c.account_id AND a.user_id=m.user_id WHERE m.user_id=? AND m.community_id=? AND m.role='owner'`).get(newOwner,communityId))
       throw new Problem(400,'Propietario no válido en esta comunidad');
     if(unit.owner_user_id===newOwner)throw new Problem(409,'La unidad ya tiene esa asignación');
     const eventId=randomUUID();
@@ -277,7 +407,7 @@ export class Store {
     const code=requireText(data.code,'Unidad',40), kind=requireText(data.kind,'Tipo',40), resident=String(data.resident??'').trim();
     if(resident.length>100) throw new Problem(400,'Ocupante demasiado largo');
     const ownerId=data.ownerUserId??null;
-    if(ownerId && !this.db.prepare(`SELECT 1 FROM memberships WHERE user_id=? AND community_id=? AND role='owner'`).get(ownerId,communityId)) throw new Problem(400,'Propietario inválido para esta comunidad');
+    if(ownerId && !this.db.prepare(`SELECT 1 FROM memberships m JOIN communities c ON c.id=m.community_id JOIN account_memberships a ON a.account_id=c.account_id AND a.user_id=m.user_id WHERE m.user_id=? AND m.community_id=? AND m.role='owner'`).get(ownerId,communityId)) throw new Problem(400,'Propietario inválido para esta comunidad');
     const id=randomUUID();
     try{this.writeAudited(userId,communityId,'unit.created',id,()=>this.db.prepare('INSERT INTO units VALUES (?,?,?,?,?,?,?)').run(id,communityId,code,kind,resident,ownerId,dateNow()));}
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'La unidad ya existe');throw e;}

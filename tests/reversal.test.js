@@ -8,7 +8,7 @@ test('reversos no borran registros, recalculan saldos y son únicos',t=>{
  const admin=s.createUser('admin@example.test','VeryStrongPassword#2026');
  const owner=s.createUser('owner@example.test','VeryStrongPassword#2026');
  const outsider=s.createUser('other@example.test','VeryStrongPassword#2026');
- const a=s.createCommunity('A'),b=s.createCommunity('B');s.setMembership(admin,a,'admin');s.setMembership(owner,a,'owner');s.setMembership(outsider,b,'admin');
+ const a=s.createCommunity('A','',s.createAccount(admin,{name:'A',kind:'independent'}).id),b=s.createCommunity('B','',s.createAccount(admin,{name:'B',kind:'independent'}).id);s.setMembership(admin,a,'admin');s.setMembership(owner,a,'owner');s.setMembership(outsider,b,'admin');
  const unit=s.addUnit(admin,a,{code:'A-101',kind:'Casa',ownerUserId:owner}).id;
  const charge=s.addCharge(admin,a,{unitId:unit,period:'2026-10',concept:'Cuota',amountMinor:20000}).id;
  const payment=s.addPayment(admin,a,{unitId:unit,reference:'REF-001',concept:'Abono',amountMinor:5000}).id;

@@ -2,25 +2,49 @@ import { escapeHtml as h } from './domain.js';
 const app=document.getElementById('app');
 const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
-const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑'};
-const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,members:[]};
+const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
+const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null};
+function takeIdentityFragment(){
+  const fragment=new URLSearchParams(location.hash.slice(1));
+  for(const type of ['reset','invite'])if(fragment.has(type)){
+    state.identityFlow={type,token:fragment.get(type)};state.identityLogin=false;
+    history.replaceState(null,'',location.pathname+location.search);return true;
+  }
+  return false;
+}
+takeIdentityFragment();
+let generation=0;
+class ContextChanged extends Error {}
+const isAccountAdmin=()=>state.accounts.find(a=>a.id===state.accountId)?.role==='account_admin';
+function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;}
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
-  const response=await fetch(path,{method,cache:'no-store',headers:{...(state.token?{Authorization:`Bearer ${state.token}`} : {}),...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,credentials:'omit'});
+  const token=state.token,revision=generation;
+  const response=await fetch(path,{method,cache:'no-store',headers:{...(state.token&&state.token!=='cookie'?{Authorization:`Bearer ${state.token}`} : {}),...(state.csrf&&method!=='GET'?{'X-CSRF-Token':state.csrf}:{}),...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,credentials:'same-origin'}).catch(error=>{if(token!==state.token||revision!==generation)throw new ContextChanged();throw error;});
   const payload=await response.json().catch(()=>({error:'Respuesta inválida del servidor'}));
+  if(token!==state.token||revision!==generation)throw new ContextChanged();
   if(!response.ok)throw new Error(payload.error??`HTTP ${response.status}`);
   return payload;
 }
 function info(text){return `<div class="live-empty">${h(text)}</div>`;}
 function viewLogin(){
-  app.innerHTML=`<div class="login-shell"><div class="login-panel"><div class="login-mark">DC</div><p class="login-caption">PLATAFORMA LOCAL PRIVADA</p><h1>Digi<span>Condominio</span></h1><p>Gestiona unidades, cuotas, pagos manuales y comunicaciones con acceso autenticado.</p><form id="login-form"><label for="email">Correo electrónico</label><input id="email" name="email" type="email" autocomplete="username" required maxlength="254" autofocus><label for="password">Contraseña</label><input id="password" name="password" type="password" autocomplete="current-password" required><button type="submit" class="primary-button" ${state.busy?'disabled':''}>${state.busy?'Validando…':'Ingresar al espacio privado'}</button></form>${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}<small>Sin registro público. El administrador inicial se configura localmente. No introduce ni almacena tus credenciales en el código fuente.</small></div><div class="login-art"><div class="login-tag">GESTIÓN CON TRAZABILIDAD</div><h2>Más claridad para cada comunidad.</h2><p>Información accesible según permisos y movimientos registrados con historial.</p><div class="login-graphic"><div><strong>01</strong><span>Comunidad</span></div><div><strong>02</strong><span>Unidades</span></div><div><strong>03</strong><span>Finanzas</span></div></div></div></div>`;
+  app.innerHTML=`<div class="login-shell"><div class="login-panel"><div class="login-mark">DC</div><p class="login-caption">ACCESO PRIVADO A TU COMUNIDAD</p><h1>Digi<span>Condominio</span></h1><p>Gestiona unidades, cuotas, pagos manuales y comunicaciones con acceso autenticado.</p><form id="login-form"><label for="email">Correo electrónico</label><input id="email" name="email" type="email" autocomplete="username" required maxlength="254" autofocus><label for="password">Contraseña</label><input id="password" name="password" type="password" autocomplete="current-password" required><button type="submit" class="primary-button" ${state.busy?'disabled':''}>${state.busy?'Validando…':'Ingresar al espacio privado'}</button></form>${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}${state.notice?`<p class="live-info" role="status">${h(state.notice)}</p>`:""}<button type="button" class="secondary-button" data-recovery="1">Olvidé mi contraseña</button><small>Acceso por invitación. Si todavía no tienes cuenta, consulta a tu administrador.</small></div><div class="login-art"><div class="login-tag">GESTIÓN CON TRAZABILIDAD</div><h2>Más claridad para cada comunidad.</h2><p>Información accesible según permisos y movimientos registrados con historial.</p><div class="login-graphic"><div><strong>01</strong><span>Comunidad</span></div><div><strong>02</strong><span>Unidades</span></div><div><strong>03</strong><span>Finanzas</span></div></div></div></div>`;
+}
+function viewIdentity(){
+  const flow=state.identityFlow;
+  const titles={request:'Recuperar mi acceso',reset:'Crear nueva contraseña',invite:'Aceptar invitación'};
+  const passwordFields=`<label>Nueva contraseña<input type="password" name="password" required minlength="12" maxlength="128" autocomplete="new-password"></label><label>Repetir contraseña<input type="password" name="confirmation" required minlength="12" maxlength="128" autocomplete="new-password"></label>`;
+  const fields=flow.type==='request'?'<label>Correo electrónico<input type="email" name="email" maxlength="254" autocomplete="username" required></label>':flow.type==='reset'?passwordFields:state.token?'<p>Se aceptará con la identidad que tiene sesión iniciada. No se cambiará su contraseña.</p>':`<label>Tu nombre<input name="name" required maxlength="100" autocomplete="name"></label>${passwordFields}`;
+  const label={request:'Solicitar recuperación',reset:'Guardar nueva contraseña',invite:'Aceptar invitación'}[flow.type];
+  app.innerHTML=`<div class="login-shell"><main class="login-panel"><div class="login-mark">DC</div><h1>${titles[flow.type]}</h1><p>${flow.type==='invite'?'El enlace es personal y caduca. Si ya tienes una cuenta, inicia sesión con el correo invitado.':'Nunca compartas enlaces de recuperación ni tu contraseña.'}</p><form id="identity-form">${fields}<button class="primary-button" ${state.busy?'disabled':''}>${label}</button></form>${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}${state.notice?`<p class="live-info" role="status">${h(state.notice)}</p>`:''}${flow.type==='invite'?'<button class="secondary-button" data-identity-login="1">Ya tengo una cuenta</button>':''}<button class="secondary-button" data-identity-back="1">Volver</button></main></div>`;
 }
 const communityName=()=>state.communities.find(x=>x.id===state.selected)?.name??'Comunidad';
-const canWrite=()=>state.data?.role==='admin';
+const canWrite=()=>!state.loading&&!state.busy&&state.data?.role==='admin';
 const filtered=(items,fields)=>items.filter(x=>fields.some(f=>String(x[f]??'').toLocaleLowerCase('es').includes(state.query.toLocaleLowerCase('es'))));
 const heading=()=>names[state.page];
 const actions=()=>{
+  if(state.loading||state.busy||!state.data)return '';
   if(!canWrite() && state.page!=='incidents')return '';
   const controls={units:['unit','Añadir unidad'],charges:['charge','Emitir cuota'],payments:['payment','Registrar pago'],announcements:['announcement','Nuevo comunicado'],documents:['document','Registrar documento'],providers:['provider','Nuevo proveedor'],expenses:['expense','Registrar gasto'],incidents:['incident','Reportar incidencia']};
   const action=controls[state.page];return action?`<button class="primary-button" data-new="${action[0]}">+ ${action[1]}</button>`:'';
@@ -83,6 +107,21 @@ function renderAudit(data){
   if(!data.audit.length)return info('Aún no hay movimientos auditados.');
   return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Acción</th><th>ID del elemento</th><th>Registro</th></tr></thead><tbody>${data.audit.map(x=>`<tr><td>${h(x.action)}</td><td><code>${h(x.entityId)}</code></td><td>${date(x.createdAt)}</td></tr>`).join('')}</tbody></table></div>`;
 }
+function renderAccount(){
+  const d=state.accountData;
+  if(!d)return info(state.loading?'Cargando cuenta…':'No tienes permiso para administrar esta cuenta.');
+  const memberOptions=d.members.map(m=>`<option value="${h(m.id)}">${h(m.displayName)} (${h(m.email)})</option>`).join('');
+  const communityOptions=d.communities.map(c=>`<option value="${h(c.id)}">${h(c.name)}</option>`).join('');
+  return `<div class="live-card account-card"><h2>${h(d.account.name)}</h2><p>${d.account.kind==='management_company'?'Empresa administradora':'Condominio independiente'} · ${d.communities.length} condominios</p><p>Administrar la cuenta no da acceso automático a las operaciones de cada condominio. Asigna esos permisos de forma explícita.</p>
+  <h3>Tarifa mensual</h3>${state.quote?`<p><strong>US$ ${(state.quote.amountMinor/100).toFixed(2)} al mes</strong> por ${state.quote.communities.length} condominios.</p><p>US$0,75 por unidad, mínimo US$25 por condominio. Impuestos y comisiones por confirmar. Esta cotización no realiza cargos.</p>`:''}
+  <h3>Suscripción</h3><p>${state.subscription?.status==='unconfigured'?'Suscripción sin configurar.':`${h(state.subscription?.plan??'')} · ${h(state.subscription?.status??'unconfigured')}`}</p><p>La configuración asistida de planes no realiza cobros ni confirma pagos.</p>
+  <h3>Invitar a una persona</h3><form id="account-invite-form" class="account-form"><label>Correo de la persona invitada<input name="email" type="email" required maxlength="254"></label><label>Rol de la invitación<select name="role"><option value="member">Miembro</option><option value="account_admin">Administrador de cuenta</option></select></label><label>Condominio de la invitación<select name="communityId"><option value="">Sin asignación operacional</option>${communityOptions}</select></label><label>Permiso inicial en el condominio<select name="communityRole"><option value="owner">Propietario</option><option value="committee">Comité</option><option value="admin">Administrador</option></select></label><button class="primary-button" ${state.busy?'disabled':''}>Enviar invitación</button></form><p>El correo debe estar configurado para entregar el enlace. No se muestra ni se copia el enlace en esta página.</p>
+  <h3>Crear condominio</h3><form id="account-community-form" class="account-form"><label>Nombre del nuevo condominio<input name="name" required maxlength="130"></label><label>Dirección (opcional)<input name="address" maxlength="200"></label><button class="primary-button" ${state.busy?'disabled':''}>Crear condominio</button></form>
+  <h3>Permisos por condominio</h3><form id="account-assignment-form" class="account-form"><label>Condominio para asignar<select name="communityId" required>${communityOptions}</select></label><label>Usuario para asignar<select name="userId" required>${memberOptions}</select></label><label>Permiso en el condominio<select name="role"><option value="admin">Administrador</option><option value="committee">Comité</option><option value="owner">Propietario</option><option value="revoke">Quitar acceso</option></select></label><button class="primary-button" ${state.busy||!d.communities.length||!d.members.length?'disabled':''}>Guardar asignación</button></form>
+  <div class="live-table-wrap"><table class="live-table"><thead><tr><th>Condominio</th><th>Usuario</th><th>Permiso</th></tr></thead><tbody>${d.assignments.map(x=>`<tr><td>${h(d.communities.find(c=>c.id===x.communityId)?.name??'')}</td><td>${h(d.members.find(m=>m.id===x.userId)?.displayName??'Miembro sin acceso a la cuenta')}</td><td>${h(x.role)}</td></tr>`).join('')}</tbody></table></div>
+  <h3>Miembros de la cuenta</h3><p>El alta de usuarios es asistida. Revocar una cuenta corta el acceso a todos sus condominios y conserva el historial.</p><div class="live-table-wrap"><table class="live-table"><thead><tr><th>Nombre</th><th>Correo</th><th>Permiso de cuenta</th></tr></thead><tbody>${d.members.map(m=>`<tr><td>${h(m.displayName)}</td><td>${h(m.email)}</td><td><select aria-label="Permiso de cuenta de ${h(m.email)}" data-account-member="${h(m.id)}" ${state.busy?'disabled':''}><option value="member" ${m.role==='member'?'selected':''}>Miembro</option><option value="account_admin" ${m.role==='account_admin'?'selected':''}>Administrador de cuenta</option><option value="revoke">Revocar acceso a cuenta</option></select></td></tr>`).join('')}</tbody></table></div>
+  <h3>Auditoría de cuenta</h3><div class="live-table-wrap"><table class="live-table"><thead><tr><th>Acción</th><th>Actor</th><th>Fecha</th></tr></thead><tbody>${d.audit.map(e=>`<tr><td>${h(e.action)}</td><td>${h(e.actorName??e.actorUserId??e.userId??'')}</td><td>${date(e.createdAt)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
 function screenContent(data){
   const content={dashboard:renderDashboard,units:renderUnits,charges:renderCharges,payments:renderPayments,announcements:renderAnnouncements,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses,incidents:renderIncidents};
   return (content[state.page]??renderDashboard)(data);
@@ -91,7 +130,7 @@ function selectOptions(){return state.data.units.map(x=>`<option value="${h(x.id
 function providerOptions(){return (state.data.providers??[]).map(x=>`<option value="${h(x.id)}">${h(x.name)}</option>`).join('');}
 function modalHtml(){
   const type=state.modal;
-  if(!type)return '';
+  if(!type||state.loading||!state.data)return '';
   const config=type==='reverse' ? ['Anular movimiento',`<p>El registro original permanecerá visible y el saldo se recalculará. Esta acción no puede repetirse.</p><label>Motivo de anulación<textarea name="reason" maxlength="500" minlength="10" rows="4" required placeholder="Describe el error y su corrección"></textarea></label>`] : {
     unit:['Nueva unidad',`<label>Código<input name="code" maxlength="40" required placeholder="A-101"></label><label>Tipo<select name="kind"><option>Departamento</option><option>Casa</option><option>Local</option><option>Oficina</option></select></label><label>Ocupante (opcional)<input name="resident" maxlength="100"></label>`],
     charge:['Emitir cuota',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Gasto común"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label>`],
@@ -108,25 +147,50 @@ function modalHtml(){
   return `<div class="modal-backdrop" data-close="1"></div><div class="modal-host"><section class="modal live-modal" role="dialog" aria-modal="true" aria-labelledby="live-modal-title"><h2 id="live-modal-title">${config[0]}</h2><form id="${type==='reverse'?'reverse-form':'create-form'}" data-type="${type}">${config[1]}${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}<div class="modal-footer"><button type="button" class="secondary-button" data-close="1">Cancelar</button><button class="primary-button" type="submit" ${state.busy?'disabled':''}>${state.busy?'Guardando…':'Guardar'}</button></div></form></section></div>`;
 }
 function render(){
+  if(state.identityFlow&&!state.identityLogin)return viewIdentity();
   if(!state.token)return viewLogin();
-  const visible=Object.keys(names).filter(x=>state.data?.role!=='committee'||!['charges','payments'].includes(x)).filter(x=>state.data?.role==='admin'||!['audit','providers','expenses'].includes(x));
+  const visible=Object.keys(names).filter(x=>x!=='account'||isAccountAdmin()).filter(x=>state.data||x==='account').filter(x=>state.data?.role!=='committee'||!['charges','payments'].includes(x)).filter(x=>state.data?.role==='admin'||!['audit','providers','expenses'].includes(x));
   const d=state.data;
-  app.innerHTML=`<div class="app-shell live-app"><aside class="sidebar ${state.menuOpen?'sidebar--open':''}"><div class="brand"><div class="brand-mark">DC</div><div><strong>Digi<span>Condominio</span></strong><small>ADMINISTRACIÓN PRIVADA</small></div></div><p class="nav-label">MI COMUNIDAD</p><nav class="nav-list">${visible.map(p=>`<button data-page="${p}" class="nav-item ${p===state.page?'active':''}" ${p===state.page?'aria-current="page"':''}><span class="live-menu-icon">${icons[p]}</span><span>${names[p]}</span></button>`).join('')}</nav><div class="sidebar-spacer"></div><div class="sidebar-note"><strong>Sesión local protegida</strong><p>Rol actual: ${h(d?.role??'')}. El acceso se limita en servidor según comunidad y unidad.</p><span>MVP EN DESARROLLO</span></div><button class="nav-item live-logout" data-logout="1">Salir de la sesión</button></aside>${state.menuOpen?'<button class="mobile-shade" data-close-menu="1" aria-label="Cerrar menú"></button>':''}<div class="main-area"><header class="topbar"><div class="topbar-left"><button data-menu="1" class="mobile-menu" aria-label="Abrir menú">☰</button><strong>${h(communityName())}</strong></div><div class="topbar-right"><span class="header-pill">Entorno local · Acceso autenticado</span><span class="top-avatar">${h((state.user?.displayName??'DC').slice(0,2).toUpperCase())}</span></div></header><main class="content"><div class="intro-row"><div><div class="eyebrow">ESPACIO DE GESTIÓN</div><h1>${h(heading())}</h1><p>Información persistida localmente y filtrada según los permisos de tu cuenta.</p></div><div class="intro-actions"><select class="live-community-select" id="live-community" aria-label="Comunidad seleccionada">${state.communities.map(c=>`<option value="${h(c.id)}" ${c.id===state.selected?'selected':''}>${h(c.name)}</option>`).join('')}</select>${actions()}${canWrite() && ['units','charges','payments','providers','expenses'].includes(state.page)?`<button class="secondary-button" data-export="${state.page}">Exportar CSV</button>`:''}</div></div><div class="live-info">Etapa MVP local · Sin operaciones bancarias ni documentos adjuntos · No apto para producción</div>${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}${state.page!=='dashboard'?`<div class="live-filter"><input id="live-search" aria-label="Buscar" value="${h(state.query)}" placeholder="Buscar en ${h(heading().toLowerCase())}"></div>`:''}<div class="live-view">${d?screenContent(d):info('Cargando datos…')}</div><footer class="footer">Digi-Condominio · MVP privado de desarrollo · El token permanece solo en memoria</footer></main></div>${modalHtml()}</div>`;
+  app.innerHTML=`<div class="app-shell live-app"><aside class="sidebar ${state.menuOpen?'sidebar--open':''}"><div class="brand"><div class="brand-mark">DC</div><div><strong>Digi<span>Condominio</span></strong><small>ADMINISTRACIÓN PRIVADA</small></div></div><p class="nav-label">MI COMUNIDAD</p><nav class="nav-list">${visible.map(p=>`<button data-page="${p}" class="nav-item ${p===state.page?'active':''}" ${p===state.page?'aria-current="page"':''}><span class="live-menu-icon">${icons[p]}</span><span>${names[p]}</span></button>`).join('')}</nav><div class="sidebar-spacer"></div><div class="sidebar-note"><strong>Sesión protegida</strong><p>Rol actual: ${h(d?.role??'')}. El acceso se limita en servidor según comunidad y unidad.</p><span>MVP EN DESARROLLO</span></div><button class="nav-item live-logout" data-logout="1">Salir de la sesión</button></aside>${state.menuOpen?'<button class="mobile-shade" data-close-menu="1" aria-label="Cerrar menú"></button>':''}<div class="main-area"><header class="topbar"><div class="topbar-left"><button data-menu="1" class="mobile-menu" aria-label="Abrir menú">☰</button><strong>${h(communityName())}</strong></div><div class="topbar-right"><span class="header-pill">${state.token==='cookie'?'Piloto privado · Acceso autenticado':'Entorno local · Acceso autenticado'}</span><span class="top-avatar">${h((state.user?.displayName??'DC').slice(0,2).toUpperCase())}</span></div></header><main class="content"><div class="intro-row"><div><div class="eyebrow">ESPACIO DE GESTIÓN</div><h1>${h(heading())}</h1><p>Información persistida localmente y filtrada según los permisos de tu cuenta.</p></div><div class="intro-actions"><select class="live-community-select" id="live-account" aria-label="Cuenta seleccionada" ${state.busy?'disabled':''}>${state.accounts.map(a=>`<option value="${h(a.id)}" ${a.id===state.accountId?'selected':''}>${h(a.name)}</option>`).join('')}</select><select class="live-community-select" id="live-community" aria-label="Comunidad seleccionada" ${state.busy||!state.communities.length?'disabled':''}>${state.communities.map(c=>`<option value="${h(c.id)}" ${c.id===state.selected?'selected':''}>${h(c.name)}</option>`).join('')}</select>${actions()}${canWrite() && ['units','charges','payments','providers','expenses'].includes(state.page)?`<button class="secondary-button" data-export="${state.page}">Exportar CSV</button>`:''}</div></div><div class="live-info">Etapa MVP local · Sin operaciones bancarias ni documentos adjuntos · No apto para producción</div>${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}${state.notice?`<p class="live-info" role="status">${h(state.notice)}</p>`:''}${!['dashboard','account'].includes(state.page)?`<div class="live-filter"><input id="live-search" aria-label="Buscar" value="${h(state.query)}" placeholder="Buscar en ${h(heading().toLowerCase())}"></div>`:''}<div class="live-view">${state.loading?info('Cargando contexto…'):state.page==='account'?renderAccount():d?screenContent(d):info('No tienes condominios asignados en esta cuenta.')}</div><footer class="footer">Digi-Condominio · MVP privado de desarrollo · ${state.token==='cookie'?'Sesión segura en este navegador':'Sesión temporal en este navegador'}</footer></main></div>${modalHtml()}</div>`;
   if(state.query){const inp=document.getElementById('live-search');if(inp && document.activeElement!==inp)inp.setSelectionRange(state.query.length,state.query.length);}
 }
 async function refresh(){
-  const [cs,d]=await Promise.all([request('/api/communities'),request(`${base()}/overview`)]);
-  state.communities=cs.communities;state.data=d;
-  state.members=d.role==='admin'?(await request(`${base()}/members`)).members:[];
-  state.error='';render();
+  if(!state.token)return;
+  const revision=++generation,accountId=state.accountId,communityId=state.selected;
+  state.loading=true;state.data=null;state.members=[];state.accountData=null;render();
+  try{
+    const result=await request('/api/accounts');
+    state.accounts=result.accounts;
+    if(!state.accounts.some(a=>a.id===accountId)){
+      state.accountId=state.accounts[0]?.id??null;state.selected=null;state.communities=[];
+      if(state.accountId){state.loading=false;return refresh();}
+      state.error='Tu cuenta no tiene acceso a ningún cliente.';return;
+    }
+    const cs=await request(`/api/accounts/${accountId}/communities`);
+    state.communities=cs.communities;
+    state.selected=cs.communities.some(c=>c.id===communityId)?communityId:cs.communities[0]?.id??null;
+    if(isAccountAdmin()){state.accountData=await request(`/api/accounts/${accountId}`);state.subscription=(await request(`/api/accounts/${accountId}/subscription`)).subscription;state.quote=(await request(`/api/accounts/${accountId}/quote`)).quote;}
+    if(state.selected){
+      const d=await request(`/api/communities/${state.selected}/overview`);
+      const members=d.role==='admin'?(await request(`/api/communities/${state.selected}/members`)).members:[];
+      state.data=d;state.members=members;
+    }else if(isAccountAdmin())state.page='account';
+    state.error='';
+  }catch(e){if(revision===generation&&!(e instanceof ContextChanged)){state.data=null;state.members=[];state.accountData=null;state.error=e.message;}}
+  finally{if(revision===generation){state.loading=false;render();}}
 }
 async function login(form){
+  const credentials=Object.fromEntries(new FormData(form));
   state.busy=true;state.error='';render();
-  try{const login=await request('/api/login','POST',Object.fromEntries(new FormData(form)));state.token=login.token;state.user=login.user;state.page='dashboard';state.query='';state.menuOpen=false;state.members=[];state.ownerTarget=null;state.incidentTarget=null;state.reverseTarget=null;
-    const result=await request('/api/communities');state.communities=result.communities;
-    if(!state.communities.length)throw new Error('Tu cuenta no tiene comunidades asignadas');
-    state.selected=state.communities[0].id;await refresh();
-  }catch(e){state.token=null;state.error=e.message;}finally{state.busy=false;render();}
+  try{
+    const login=await request('/api/login','POST',credentials);
+    state.token=login.token??'cookie';state.csrf=login.csrfToken??null;state.user=login.user;clearContext();state.identityLogin=false;
+    const result=await request('/api/accounts');state.accounts=result.accounts;
+    state.accountId=state.accounts[0]?.id??null;state.selected=null;
+    if(!state.accountId)throw new Error('Tu cuenta no tiene clientes asignados');
+    await refresh();
+  }catch(e){if(e instanceof ContextChanged)return;state.token=null;state.error=e.message;}
+  finally{state.busy=false;render();}
 }
 function amountMinor(value){
   if(typeof value!=='string'|| !/^(?:0|[1-9]\d{0,8})(?:[.,]\d{1,2})?$/.test(value.trim()))throw Error('El importe debe ser positivo y tener máximo dos decimales');
@@ -146,16 +210,57 @@ async function submitCreate(form){
     const submit=form.querySelector('button[type=submit]');if(submit)submit.disabled=true;
     await request(`${base()}/${routes[type]}`,'POST',data);
     state.modal=null;state.query='';await refresh();
-  }catch(e){state.error=e.message;render();}finally{state.busy=false;}
+  }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}finally{state.busy=false;render();}
 }
 app.addEventListener('submit',async event=>{
+  if(event.target.id==='identity-form'){
+    event.preventDefault();if(state.busy)return;
+    const input=Object.fromEntries(new FormData(event.target)),flow=state.identityFlow;
+    if(input.password!==undefined&&input.password!==input.confirmation){state.error='Las contraseñas no coinciden';render();return;}
+    state.busy=true;state.error='';state.notice='';render();
+    try{
+      const path=flow.type==='request'?'/api/password-reset/request':flow.type==='reset'?'/api/password-reset/complete':'/api/invitations/accept';
+      await request(path,'POST',flow.type==='request'?{email:input.email}:{token:flow.token,name:input.name,password:input.password});
+      if(flow.type==='request')state.notice='Si la cuenta existe, recibirás instrucciones por correo.';
+      else if(flow.type==='reset'){
+        clearContext();state.token=null;state.csrf=null;state.user=null;state.accounts=[];state.accountId=null;state.communities=[];state.selected=null;state.identityFlow=null;state.identityLogin=false;state.notice='Contraseña actualizada. Inicia sesión nuevamente.';
+      }else{
+        state.identityFlow=null;state.identityLogin=false;
+        if(state.token)await refresh();
+        state.notice='Invitación aceptada. Ya puedes iniciar sesión.';
+      }
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}return;
+  }
+  if(event.target.id==='account-invite-form'){
+    event.preventDefault();if(state.busy||state.loading||!isAccountAdmin())return;
+    const input=Object.fromEntries(new FormData(event.target));
+    input.communityId=input.communityId||null;input.communityRole=input.communityId?input.communityRole:null;
+    state.busy=true;state.error='';state.notice='';render();
+    try{await request(`/api/accounts/${state.accountId}/invitations`,'POST',input);await refresh();state.notice='Invitación enviada.';}
+    catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}return;
+  }
+  if(['account-community-form','account-assignment-form'].includes(event.target.id)){
+    event.preventDefault();if(state.busy||state.loading||!isAccountAdmin())return;
+    const form=event.target,data=Object.fromEntries(new FormData(form)),accountId=state.accountId;
+    state.busy=true;render();
+    try{
+      if(form.id==='account-community-form')await request(`/api/accounts/${accountId}/communities`,'POST',data);
+      else await request(`/api/accounts/${accountId}/communities/${data.communityId}/members/${data.userId}`,'PATCH',{role:data.role==='revoke'?null:data.role});
+      await refresh();
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}
+    return;
+  }
+  if(event.target.id!=='login-form'&&(state.loading||state.busy)){event.preventDefault();return;}
   if(event.target.id==='login-form'){event.preventDefault();await login(event.target);return;}
   if(event.target.id==='create-form' && event.target.dataset.type==='owner-assignment'){
     event.preventDefault();if(state.busy)return;
     const ownerUserId=String(new FormData(event.target).get('ownerUserId')??'');
     state.busy=true;event.target.querySelector('button[type=submit]').disabled=true;
     try{await request(`${base()}/units/${state.ownerTarget}/owner`,'PATCH',{ownerUserId});state.modal=null;state.ownerTarget=null;await refresh();}
-    catch(e){state.error=e.message;render();}finally{state.busy=false;}
+    catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}finally{state.busy=false;render();}
     return;
   }
   if(event.target.id==='create-form' && ['incident-comment','incident-status'].includes(event.target.dataset.type)){
@@ -166,15 +271,23 @@ app.addEventListener('submit',async event=>{
       if(kind==='incident-comment')await request(`${base()}/incidents/${target}/comments`,'POST',data);
       else await request(`${base()}/incidents/${target}/status`,'PATCH',data);
       state.modal=null;state.incidentTarget=null;await refresh();
-    }catch(e){state.error=e.message;render();}finally{state.busy=false;}
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}finally{state.busy=false;render();}
     return;
   }
   if(event.target.id==='create-form'){event.preventDefault();await submitCreate(event.target);return;}
   if(event.target.id==='reverse-form'){event.preventDefault();const target=state.reverseTarget;const reason=String(new FormData(event.target).get('reason')??'').trim();const button=event.target.querySelector('button[type=submit]');if(button)button.disabled=true;
     try{await request(`${base()}/${target.type}/${target.id}/reverse`,'POST',{reason});state.modal=null;state.reverseTarget=null;await refresh();}
-    catch(e){state.error=e.message;render();}return;}
+    catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}return;}
 });
 app.addEventListener('click',async event=>{
+  if(event.target.closest('[data-recovery]')){state.identityFlow={type:'request'};state.identityLogin=false;state.error='';state.notice='';render();return;}
+  if(event.target.closest('[data-identity-back]')){state.identityFlow=null;state.identityLogin=false;state.error='';state.notice='';render();return;}
+  if(event.target.closest('[data-identity-login]')){state.identityLogin=true;state.error='';render();return;}
+  if(event.target.closest('[data-logout]')){
+    const token=state.token,csrf=state.csrf;clearContext();state.token=null;state.csrf=null;state.user=null;state.accounts=[];state.accountId=null;state.communities=[];state.selected=null;state.busy=false;state.loading=false;render();
+    void fetch('/api/logout',{method:'POST',headers:{...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`} : {}),...(csrf?{'X-CSRF-Token':csrf}:{})},credentials:'same-origin'}).catch(()=>{});return;
+  }
+  if(state.loading||state.busy)return;
   const page=event.target.closest('[data-page]')?.dataset.page;
   if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();return;}
   const unitOwner=event.target.closest('[data-unit-owner]');
@@ -192,20 +305,37 @@ app.addEventListener('click',async event=>{
   if(event.target.closest('[data-close-menu]')){state.menuOpen=false;render();return;}
   const exportName=event.target.closest('[data-export]')?.dataset.export;
   if(exportName){
-    try{const response=await fetch(`${base()}/reports/${exportName}.csv`,{headers:{Authorization:`Bearer ${state.token}`},cache:'no-store',credentials:'omit'});
+    const token=state.token,revision=generation;
+    try{const response=await fetch(`${base()}/reports/${exportName}.csv`,{headers:state.token!=='cookie'?{Authorization:`Bearer ${state.token}`}:{},cache:'no-store',credentials:'same-origin'});
       if(!response.ok)throw Error('No fue posible exportar el informe');
-      const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+      const blob=await response.blob();
+      if(token!==state.token||revision!==generation)return;
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
       a.href=url;a.download=`digi-${exportName}.csv`;document.body.append(a);a.click();a.remove();URL.revokeObjectURL(url);
-    }catch(e){state.error=e.message;render();}return;
+    }catch(e){if(e instanceof ContextChanged||token!==state.token||revision!==generation)return;state.error=e.message;render();}return;
   }
-  if(event.target.closest('[data-logout]')){try{await request('/api/logout','POST');}catch{}state.token=null;state.user=null;state.data=null;state.communities=[];state.selected=null;state.page='dashboard';state.query='';state.members=[];state.menuOpen=false;state.ownerTarget=null;state.incidentTarget=null;state.reverseTarget=null;state.modal=null;state.error='';render();}
+
 });
 app.addEventListener('change',async event=>{
-  if(event.target.id!=='live-community')return;
-  state.selected=event.target.value;state.error='';state.query='';try{await refresh();}catch(e){state.error=e.message;render();}
+  if(state.busy)return;
+  if(event.target.dataset.accountMember){
+    if(!isAccountAdmin()||state.loading)return;
+    const role=event.target.value==='revoke'?null:event.target.value,id=event.target.dataset.accountMember;
+    state.busy=true;render();
+    try{await request(`/api/accounts/${state.accountId}/members/${id}`,'PATCH',{role});await refresh();}
+    catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}
+    return;
+  }
+  if(event.target.id==='live-account'){
+    const id=event.target.value;clearContext();state.accountId=id;state.selected=null;state.communities=[];await refresh();return;
+  }
+  if(event.target.id==='live-community'){
+    const id=event.target.value;clearContext();state.selected=id;await refresh();
+  }
 });
 app.addEventListener('input',event=>{
-  if(event.target.id!=='live-search')return;
+  if(event.target.id!=='live-search'||state.loading||!state.data)return;
   const selection=event.target.selectionStart;
   state.query=event.target.value;
   document.querySelector('.live-view').innerHTML=screenContent(state.data);
@@ -217,3 +347,15 @@ document.addEventListener('keydown',event=>{
   if(event.key==='Tab'&&state.modal){const inputs=[...document.querySelectorAll('.live-modal button,.live-modal input,.live-modal textarea,.live-modal select')].filter(x=>!x.disabled);if(!inputs.length)return;const first=inputs[0],last=inputs.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
 });
 render();
+async function restoreSession(){
+  try{
+    const session=await request('/api/session');
+    if(!session.csrfToken)return;
+    state.token='cookie';state.csrf=session.csrfToken;state.user=session.user;clearContext();
+    const result=await request('/api/accounts');state.accounts=result.accounts;state.accountId=result.accounts[0]?.id??null;state.selected=null;
+    if(state.accountId)await refresh();else render();
+  }catch{/* No existing cookie session: keep the login or incoming-link screen. */}
+}
+void restoreSession();
+
+window.addEventListener('hashchange',()=>{if(takeIdentityFragment()){clearContext();state.busy=false;render();}});

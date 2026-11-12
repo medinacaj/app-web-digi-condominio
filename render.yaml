@@ -1,0 +1,32 @@
+# Creates a billable service only when the owner explicitly applies this Blueprint.
+# Review current provider pricing and choose a region before creating resources.
+services:
+  - type: web
+    name: digi-condominio-pilot
+    runtime: docker
+    plan: starter
+    autoDeploy: false
+    healthCheckPath: /api/health
+    disk:
+      name: digi-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DIGI_PUBLIC_ORIGIN
+        sync: false
+      - key: DIGI_TRUST_PROXY
+        value: "1"
+      - key: DIGI_MAIL_API_KEY
+        sync: false
+      - key: DIGI_MAIL_FROM
+        sync: false
+      - key: DIGI_ADMIN_EMAIL
+        sync: false
+      - key: DIGI_ADMIN_PASSWORD
+        sync: false
+      - key: DIGI_COMMUNITY_NAME
+        sync: false
+      - key: DIGI_ACCOUNT_NAME
+        sync: false
+      - key: DIGI_ACCOUNT_KIND
+        value: independent

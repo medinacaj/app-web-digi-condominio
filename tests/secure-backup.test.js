@@ -4,15 +4,16 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../server/store.js';
+import { sqliteTempCleanup } from './helpers/sqlite-fixture.js';
 import { createEncryptedBackup, restoreEncryptedBackup, decryptSqlite } from '../server/secure-backup.js';
 
 test('respaldo cifrado restaura unidades, pagos, membresías e incidencias',async t=>{
-  const dir=mkdtempSync(join(tmpdir(),'digi-cipher-test-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const dir=mkdtempSync(join(tmpdir(),'digi-cipher-test-'));const cleanup=sqliteTempCleanup(t,dir);
   const dbPath=join(dir,'orig.sqlite'),enc=join(dir,'backup.dcb'),recovered=join(dir,'restored.sqlite');
   const passphrase='Passphrase muy larga de respaldo solo de QA 2026';
   const s=new Store(dbPath);
   const admin=s.createUser('admin@encrypted.test','VeryStrongPassword#2026');
-  const community=s.createCommunity('Torre prueba');s.setMembership(admin,community,'admin');
+  const community=s.createCommunity('Torre prueba','',s.createAccount(admin,{name:'Torre prueba',kind:'independent'}).id);s.setMembership(admin,community,'admin');
   const unit=s.addUnit(admin,community,{code:'T1',kind:'Casa'}).id;
   s.addCharge(admin,community,{unitId:unit,period:'2026-10',concept:'Común',amountMinor:3000});
   s.addPayment(admin,community,{unitId:unit,reference:'QA-1',concept:'Abono',amountMinor:500});
@@ -29,7 +30,7 @@ test('respaldo cifrado restaura unidades, pagos, membresías e incidencias',asyn
   const recoveredSummary=restoreEncryptedBackup(enc,recovered,passphrase);
   assert.ok(recoveredSummary.bytes>100);
   assert.throws(()=>restoreEncryptedBackup(enc,recovered,passphrase),/destino ya existe/);
-  const output=new Store(recovered);t.after(()=>output.close());
+  const output=cleanup.track(new Store(recovered));
   assert.equal(output.db.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
   assert.equal(output.communitiesFor(admin).length,1);
   assert.equal(output.overview(admin,community).units[0].balanceMinor,2500);
@@ -37,8 +38,8 @@ test('respaldo cifrado restaura unidades, pagos, membresías e incidencias',asyn
 });
 
 test('no cifra datos que no son SQLite ni admite clave débil',async t=>{
-  const dir=mkdtempSync(join(tmpdir(),'digi-cipher-bad-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
-  const orig=join(dir,'plain.sqlite'),enc=join(dir,'encrypted.dcb');const s=new Store(orig);t.after(()=>s.close());
+  const dir=mkdtempSync(join(tmpdir(),'digi-cipher-bad-'));const cleanup=sqliteTempCleanup(t,dir);
+  const orig=join(dir,'plain.sqlite'),enc=join(dir,'encrypted.dcb');const s=cleanup.track(new Store(orig));
   await assert.rejects(createEncryptedBackup(s,enc,'clave-corta'),/frase de cifrado/);
   assert.equal(existsSync(enc),false);
   assert.throws(()=>decryptSqlite(Buffer.from('texto de ejemplo'),'otra clave segura de prueba 2026'),/Formato de respaldo/);

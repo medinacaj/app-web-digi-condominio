@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store, Problem } from '../server/store.js';
+import { sqliteTempCleanup } from './helpers/sqlite-fixture.js';
 function fixture(){
   const s=new Store();
   const admin=s.createUser('admin@example.test','VeryStrongPassword#2026','Administración');
   const other=s.createUser('other@example.test','VeryStrongPassword#2026','Otro admin');
   const owner=s.createUser('owner@example.test','VeryStrongPassword#2026','Propietaria');
   const committee=s.createUser('committee@example.test','VeryStrongPassword#2026','Comité');
-  const a=s.createCommunity('Comunidad A'),b=s.createCommunity('Comunidad B');
+  const a=s.createCommunity('Comunidad A','',s.createAccount(admin,{name:'Comunidad A',kind:'independent'}).id),b=s.createCommunity('Comunidad B','',s.createAccount(admin,{name:'Comunidad B',kind:'independent'}).id);
   s.setMembership(admin,a,'admin');s.setMembership(other,b,'admin');s.setMembership(owner,a,'owner');s.setMembership(committee,a,'committee');
   const unitA=s.addUnit(admin,a,{code:'A-01',kind:'Departamento',resident:'Residente demo',ownerUserId:owner}).id;
   const unitB=s.addUnit(other,b,{code:'B-01',kind:'Casa',resident:'Residente demo'}).id;
@@ -86,16 +87,16 @@ test('los registros sobreviven al cierre y reapertura de SQLite',async t=>{
   const {mkdtempSync,rmSync}=await import('node:fs');
   const {tmpdir}=await import('node:os');
   const {join}=await import('node:path');
-  const path=mkdtempSync(join(tmpdir(),'digi-test-'));t.after(()=>rmSync(path,{recursive:true,force:true}));
+  const path=mkdtempSync(join(tmpdir(),'digi-test-'));const cleanup=sqliteTempCleanup(t,path);
   const file=join(path,'condominio.sqlite');
   let s=new Store(file);
   const admin=s.createUser('persist@example.test','VeryStrongPassword#2026');
-  const community=s.createCommunity('Prueba de persistencia');
+  const community=s.createCommunity('Prueba de persistencia','',s.createAccount(admin,{name:'Prueba de persistencia',kind:'independent'}).id);
   s.setMembership(admin,community,'admin');
   const unit=s.addUnit(admin,community,{code:'T-101',kind:'Casa'}).id;
   s.addCharge(admin,community,{unitId:unit,period:'2026-10',concept:'Común',amountMinor:12300});
   s.close();
-  s=new Store(file);t.after(()=>s.close());
+  s=cleanup.track(new Store(file));
   const login=s.authenticate('persist@example.test','VeryStrongPassword#2026');
   assert.ok(login);
   const data=s.overview(login.user.id,community);

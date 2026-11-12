@@ -1,9 +1,12 @@
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Problem } from './store.js';
 import { report } from './report.js';
+import { quoteAccount } from './pricing.js';
+import { webSecurity } from './web-security.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const assets = new Map([
@@ -29,31 +32,92 @@ async function body(req){
   try{const parsed=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('object expected');return parsed;}
   catch{throw new Problem(400,'JSON inválido');}
 }
-function bearer(req){const value=req.headers.authorization ?? '';const found=/^Bearer ([a-f0-9]{64})$/.exec(value);return found?.[1]??null;}
-export function createApp(store){
+export function createApp(store,options={}){
+  const security=webSecurity(options);
+  const {identity=null,subscriptions=null}=options;
   const attempts=new Map();
   const server=createServer(async(req,res)=>{
     headers(res);
     try{
+      security.guard(req,res);
       const url=new URL(req.url,'http://localhost');
       const pathname=url.pathname;
-      if(req.method==='GET' && pathname==='/api/health')return send(res,200,{status:'ok',service:'digi-condominio',mode:'local-mvp'});
+      if(req.method==='GET' && pathname==='/api/health')return send(res,200,{status:'ok',service:'digi-condominio',mode:security.hosted?'hosted-pilot':'local-mvp'});
       if(pathname==='/api/login' && req.method==='POST'){
-        const ip=req.socket.remoteAddress??'local';
-        const a=attempts.get(ip)??{n:0,until:Date.now()+600_000};
-        if(a.until<Date.now()){a.n=0;a.until=Date.now()+600_000;}
-        if(a.n>=8)throw new Problem(429,'Demasiados intentos, intente más tarde');
         const data=await body(req);
+        // Scope failed attempts to the normalized identity, not the shared reverse-proxy IP.
+        // Client-supplied forwarding headers cannot reset or bypass this key.
+        const key=createHash('sha256').update(typeof data.email==='string'?data.email.trim().toLowerCase().slice(0,254):'invalid').digest('hex');
+        const now=Date.now();
+        if(attempts.size>=4096){for(const [k,v] of attempts)if(v.until<now)attempts.delete(k);}
+        if(!attempts.has(key)&&attempts.size>=4096)throw new Problem(429,'Demasiadas solicitudes, intente más tarde');
+        const a=attempts.get(key)??{n:0,until:now+600_000};
+        if(a.until<now){a.n=0;a.until=now+600_000;}
+        if(a.n>=8)throw new Problem(429,'Demasiados intentos, intente más tarde');
         const session=store.authenticate(data.email,data.password);
-        if(!session){a.n++;attempts.set(ip,a);throw new Problem(401,'Credenciales no válidas');}
-        attempts.delete(ip);
-        return send(res,200,session);
+        if(!session){a.n++;attempts.set(key,a);throw new Problem(401,'Credenciales no válidas');}
+        attempts.delete(key);
+        const previous=security.token(req);if(previous)store.logout(previous);
+        security.setSession(res,session.token,session.expires);
+        return send(res,200,security.hosted?{user:session.user,expires:session.expires,csrfToken:security.csrf(session.token)}:session);
+      }
+      if(req.method==='POST'&&['/api/password-reset/request','/api/password-reset/complete','/api/invitations/accept'].includes(pathname)){
+        if(!identity)throw new Problem(503,'El servicio de correo e identidad no está configurado');
+        const input=await body(req);
+        if(pathname==='/api/password-reset/request')return send(res,200,await identity.requestPasswordReset(input.email));
+        if(pathname==='/api/password-reset/complete'){
+          const result=identity.resetPassword(input);security.clearSession(res);return send(res,200,result);
+        }
+        const current=store.session(security.token(req));
+        return send(res,200,identity.acceptInvitation(input,current?.id??null));
       }
       if(pathname.startsWith('/api/')){
-        const token=bearer(req);const user=store.session(token);
+        const token=security.token(req);const user=store.session(token);
         if(!user)throw new Problem(401,'Sesión requerida');
-        if(pathname==='/api/session' && req.method==='GET')return send(res,200,{user});
-        if(pathname==='/api/logout' && req.method==='POST'){store.logout(token);return send(res,200,{ok:true});}
+        security.requireCsrf(req,token);
+        if(pathname==='/api/session' && req.method==='GET')return send(res,200,{user,...(security.hosted?{csrfToken:security.csrf(token)}:{})});
+        if(pathname==='/api/logout' && req.method==='POST'){store.logout(token);security.clearSession(res);return send(res,200,{ok:true});}
+        if(pathname==='/api/accounts' && req.method==='GET')return send(res,200,{accounts:store.accountsFor(user.id)});
+        const invitationMatch=/^\/api\/accounts\/([a-zA-Z0-9-]{36})\/invitations$/.exec(pathname);
+        if(invitationMatch){
+          if(req.method!=='POST')throw new Problem(405,'Método no permitido');
+          store.requireAccountAdmin(user.id,invitationMatch[1]);
+          if(!identity)throw new Problem(503,'El servicio de correo e identidad no está configurado');
+          return send(res,201,await identity.createInvitation(user.id,invitationMatch[1],await body(req)));
+        }
+        const quoteMatch=/^\/api\/accounts\/([a-zA-Z0-9-]{36})\/quote$/.exec(pathname);
+        if(quoteMatch){if(req.method!=='GET')throw new Problem(405,'Método no permitido');return send(res,200,{quote:quoteAccount(store,user.id,quoteMatch[1])});}
+        const subscriptionMatch=/^\/api\/accounts\/([a-zA-Z0-9-]{36})\/subscription$/.exec(pathname);
+        if(subscriptionMatch){
+          if(req.method!=='GET')throw new Problem(405,'Método no permitido');
+          store.requireAccountAdmin(user.id,subscriptionMatch[1]);
+          return send(res,200,{subscription:subscriptions?subscriptions.get(subscriptionMatch[1]):{status:'unconfigured',plan:null,expiresAt:null}});
+        }
+        const accountMatch=/^\/api\/accounts\/([a-zA-Z0-9-]{36})$/.exec(pathname);
+        if(accountMatch){
+          if(req.method!=='GET')throw new Problem(405,'Método no permitido');
+          return send(res,200,store.accountOverview(user.id,accountMatch[1]));
+        }
+        const accountCommunities=/^\/api\/accounts\/([a-zA-Z0-9-]{36})\/communities$/.exec(pathname);
+        if(accountCommunities){
+          if(req.method==='GET')return send(res,200,{communities:store.communitiesFor(user.id,accountCommunities[1])});
+          if(req.method==='POST')return send(res,201,store.addCommunity(user.id,accountCommunities[1],await body(req)));
+          throw new Problem(405,'Método no permitido');
+        }
+        const accountMember=/^\/api\/accounts\/([a-zA-Z0-9-]{36})\/members\/([a-zA-Z0-9-]{36})$/.exec(pathname);
+        if(accountMember){
+          if(req.method!=='PATCH')throw new Problem(405,'Método no permitido');
+          const data=await body(req);
+          if(!Object.hasOwn(data,'role'))throw new Problem(400,'Indique rol o null para revocar');
+          return send(res,200,store.changeAccountMember(user.id,accountMember[1],accountMember[2],data.role));
+        }
+        const communityMember=/^\/api\/accounts\/([a-zA-Z0-9-]{36})\/communities\/([a-zA-Z0-9-]{36})\/members\/([a-zA-Z0-9-]{36})$/.exec(pathname);
+        if(communityMember){
+          if(req.method!=='PATCH')throw new Problem(405,'Método no permitido');
+          const data=await body(req);
+          if(!Object.hasOwn(data,'role'))throw new Problem(400,'Indique rol o null para revocar');
+          return send(res,200,store.changeCommunityMember(user.id,communityMember[1],communityMember[2],communityMember[3],data.role));
+        }
         if(pathname==='/api/communities' && req.method==='GET')return send(res,200,{communities:store.communitiesFor(user.id)});
         const ownerMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/units\/([a-zA-Z0-9-]{36})\/owner$/.exec(pathname);
         if(ownerMatch){

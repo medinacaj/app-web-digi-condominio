@@ -44,3 +44,7 @@ Thumbs.db
 # Respaldo cifrado y restauraciones temporales
 *.dcb
 .digi-restore-*/
+
+# Portable runtime is distributed in the release ZIP, never in Git
+runtime/
+__pycache__/
