@@ -42,7 +42,7 @@ export class Store {
     this.db = new DatabaseSync(location);
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const dbVersion=this.db.prepare('PRAGMA user_version').get().user_version;
-    if(dbVersion>9){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
+    if(dbVersion>10){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
     const hasCommunities=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='communities'").get();
     if(hasCommunities && !this.db.prepare('PRAGMA table_info(communities)').all().some(c=>c.name==='account_id')) {
       this.db.close(); throw new Problem(409,'Migración de cuentas requerida: use migrate:accounts con mapeo explícito y respaldo');
@@ -216,6 +216,32 @@ export class Store {
         authentication TEXT NOT NULL CHECK(authentication='authenticated_self_service')
       );
       CREATE INDEX IF NOT EXISTS ix_consent_events_user ON communication_consent_events(community_id,user_id,occurred_at);
+      CREATE TABLE IF NOT EXISTS payment_reports (
+        id TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL,
+        unit_id TEXT NOT NULL,
+        submitter_user_id TEXT NOT NULL REFERENCES users(id),
+        reference TEXT NOT NULL,
+        concept TEXT NOT NULL,
+        amount_minor INTEGER NOT NULL CHECK(amount_minor>0),
+        status TEXT NOT NULL CHECK(status IN ('informado','en_revision','confirmado','rechazado','reversado')),
+        ledger_payment_id TEXT REFERENCES payments(id),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(unit_id,community_id) REFERENCES units(id,community_id),
+        UNIQUE(community_id,reference)
+      );
+      CREATE INDEX IF NOT EXISTS ix_payment_reports_scope ON payment_reports(community_id,unit_id,created_at);
+      CREATE TABLE IF NOT EXISTS payment_report_events (
+        id TEXT PRIMARY KEY,
+        report_id TEXT NOT NULL REFERENCES payment_reports(id),
+        community_id TEXT NOT NULL REFERENCES communities(id),
+        actor_user_id TEXT NOT NULL REFERENCES users(id),
+        action TEXT NOT NULL,
+        note TEXT NOT NULL,
+        at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS ix_payment_report_events ON payment_report_events(community_id,report_id,at);
       CREATE TABLE IF NOT EXISTS unit_people (
         id TEXT PRIMARY KEY,
         community_id TEXT NOT NULL,
@@ -243,7 +269,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
-      this.db.exec('PRAGMA user_version=9');
+      this.db.exec('PRAGMA user_version=10');
       this.db.exec('COMMIT');
     }catch(error){this.db.exec('ROLLBACK');this.db.close();throw error;}
   }
@@ -719,6 +745,73 @@ export class Store {
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'Referencia de pago duplicada en la comunidad');throw e;}
 
     return {id};
+  }
+  paymentReportsFor(userId,communityId){
+    const role=this.member(userId,communityId);
+    if(!['admin','owner'].includes(role))throw new Problem(403,'Acceso a reportes de pago restringido');
+    const ownerOnly=role==='owner';
+    return rows(this.db.prepare(`SELECT r.id,r.unit_id unitId,u.code unit,r.reference,r.concept,
+      r.amount_minor amountMinor,r.status,r.created_at createdAt,r.updated_at updatedAt,
+      r.ledger_payment_id ledgerPaymentId
+      FROM payment_reports r JOIN units u ON u.id=r.unit_id AND u.community_id=r.community_id
+      WHERE r.community_id=? ${ownerOnly?'AND r.submitter_user_id=? AND u.owner_user_id=?':''}
+      ORDER BY r.created_at DESC,r.rowid DESC LIMIT 100`),communityId,...(ownerOnly?[userId,userId]:[]));
+  }
+  submitPaymentReport(userId,communityId,data){
+    if(this.member(userId,communityId)!=='owner')throw new Problem(403,'Solo el propietario vinculado puede informar pagos');
+    if(!data||typeof data!=='object'||Array.isArray(data)||
+      Object.keys(data).sort().join(',')!=='amountMinor,concept,reference,unitId')
+      throw new Problem(400,'Campos de pago informado inválidos');
+    const unitId=requireText(data.unitId,'Unidad',60),reference=requireText(data.reference,'Referencia',90),
+      concept=requireText(data.concept,'Concepto',100),amountMinor=requireMinor(data.amountMinor);
+    if(!this.db.prepare('SELECT 1 FROM units WHERE id=? AND community_id=? AND owner_user_id=?').get(unitId,communityId,userId))
+      throw new Problem(404,'Unidad no disponible');
+    const id=randomUUID(),at=dateNow();
+    try{this.writeAudited(userId,communityId,'payment_report.informed',id,()=>{
+      this.db.prepare(`INSERT INTO payment_reports VALUES (?,?,?,?,?,?,?,'informado',NULL,?,?)`)
+        .run(id,communityId,unitId,userId,reference,concept,amountMinor,at,at);
+      this.db.prepare(`INSERT INTO payment_report_events VALUES (?,?,?,?,?, ?,?)`)
+        .run(randomUUID(),id,communityId,userId,'informado','Declaración voluntaria del titular',at);
+    });}catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Esta referencia ya fue informada en la comunidad');throw e;}
+    return {id,status:'informado',ledgerPosted:false,bankReconciled:false};
+  }
+  decidePaymentReport(userId,communityId,reportId,data){
+    this.requireAdmin(userId,communityId);
+    if(typeof reportId!=='string'||!VALID.test(reportId))throw new Problem(404,'Reporte de pago no disponible');
+    if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).sort().join(',')!=='action,note')
+      throw new Problem(400,'Acción de revisión inválida');
+    const {action}=data,note=requireText(data.note,'Justificación',240);
+    if(note.length<10||!['review','confirm','reject','reverse'].includes(action))
+      throw new Problem(400,'Acción o justificación inválida');
+    const current=this.db.prepare(`SELECT id,unit_id unitId,reference,concept,amount_minor amountMinor,status,
+      ledger_payment_id ledgerPaymentId FROM payment_reports WHERE id=? AND community_id=?`).get(reportId,communityId);
+    if(!current)throw new Problem(404,'Reporte de pago no disponible');
+    const next={review:'en_revision',confirm:'confirmado',reject:'rechazado',reverse:'reversado'}[action];
+    const allowed={informado:['review'],en_revision:['confirm','reject'],confirmado:['reverse'],rechazado:[],reversado:[]};
+    if(!allowed[current.status].includes(action))throw new Problem(409,'Transición de pago no permitida');
+    const at=dateNow();
+    let ledgerPaymentId=current.ledgerPaymentId??null;
+    this.writeAudited(userId,communityId,'payment_report.'+action,reportId,()=>{
+      if(action==='confirm'){
+        // Explicit administrative posting after review; NOT automatic bank matching.
+        const ledger=this.addPayment(userId,communityId,{unitId:current.unitId,reference:current.reference,
+          concept:current.concept,amountMinor:current.amountMinor});
+        ledgerPaymentId=ledger.id;
+      }
+      if(action==='reverse'){
+        if(!ledgerPaymentId)throw new Problem(409,'No existe abono registrado para reversar');
+        this.reverseEntry(userId,communityId,'payment',ledgerPaymentId,note);
+      }
+      this.db.prepare('UPDATE payment_reports SET status=?,ledger_payment_id=?,updated_at=? WHERE id=? AND community_id=?')
+        .run(next,ledgerPaymentId,at,reportId,communityId);
+      this.db.prepare('INSERT INTO payment_report_events VALUES (?,?,?,?,?,?,?)')
+        .run(randomUUID(),reportId,communityId,userId,action,note,at);
+      if(action==='reject')this.queueUnitNotification(communityId,current.unitId,'unit_message',
+        'Reporte de pago rechazado','La administración rechazó un reporte de pago. Revisa el estado de cuenta o consulta directamente a administración.',reportId+':rejected');
+      if(action==='review')this.queueUnitNotification(communityId,current.unitId,'unit_message',
+        'Reporte de pago en revisión','La administración comenzó a revisar un pago informado. No constituye confirmación bancaria.',reportId+':review');
+    });
+    return {id:reportId,status:next,ledgerPosted:next==='confirmado',bankReconciled:false};
   }
   addAnnouncement(userId,communityId,data){
     this.requireAdmin(userId,communityId);

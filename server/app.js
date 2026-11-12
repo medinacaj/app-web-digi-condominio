@@ -185,6 +185,17 @@ export function createApp(store,options={}){
           if(operation==='prepare'&&req.method==='POST')return send(res,201,store.prepareDueReminders(user.id,communityId));
           throw new Problem(405,'Método no permitido');
         }
+        const reportDecision=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/payment-reports\/([a-zA-Z0-9-]{36})\/decision$/.exec(pathname);
+        if(reportDecision){
+          if(req.method!=='POST')throw new Problem(405,'Método no permitido');
+          return send(res,200,store.decidePaymentReport(user.id,reportDecision[1],reportDecision[2],await body(req)));
+        }
+        const paymentReportsMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/payment-reports$/.exec(pathname);
+        if(paymentReportsMatch){
+          if(req.method==='GET')return send(res,200,{reports:store.paymentReportsFor(user.id,paymentReportsMatch[1])});
+          if(req.method==='POST')return send(res,201,store.submitPaymentReport(user.id,paymentReportsMatch[1],await body(req)));
+          throw new Problem(405,'Método no permitido');
+        }
         const reversalMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/(charges|payments)\/([a-zA-Z0-9-]{36})\/reverse$/.exec(pathname);
         if(reversalMatch){
           if(req.method!=='POST')throw new Problem(405,'Método no permitido');
