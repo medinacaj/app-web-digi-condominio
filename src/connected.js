@@ -79,6 +79,37 @@ function renderAnnouncements(data,small=false){
   if(!list.length)return info('No hay comunicados para esta comunidad.');
   return `<div class="live-notices">${list.map(x=>`<article class="live-notice"><div class="live-notice-symbol">◉</div><div><h3>${h(x.title)}</h3><p>${h(x.body)}</p><small>${date(x.createdAt)}</small></div></article>`).join('')}</div>`;
 }
+
+const directoryRelationship={resident:'Residente',tenant:'Arrendatario',authorized:'Persona autorizada',emergency:'Contacto de emergencia'};
+const directoryChannel={none:'Sin canal',email:'Correo (no verificado)',sms:'SMS (no verificado)',whatsapp:'WhatsApp (no verificado)'};
+function renderDirectory(data){
+  if(data.role!=='admin')return info('El directorio es privado y exclusivo de la administración.');
+  if(!data.units.length)return info('Registra un departamento antes de usar el directorio.');
+  const unit=state.directoryUnit??data.units[0].id,view=state.directory;
+  const options=data.units.map(u=>"<option value='"+h(u.id)+"' "+(u.id===unit?'selected':'')+">"+h(u.code)+"</option>").join('');
+  const head="<div class='live-card'><h2>Personas por departamento</h2><p>El propietario con acceso al portal se administra en «Unidades». Los demás contactos NO tienen acceso a finanzas ni reciben mensajes externos automáticamente.</p><label for='directory-unit-select'>Departamento</label><select id='directory-unit-select' class='live-community-select' aria-label='Departamento del directorio'>"+options+"</select>";
+  if(state.directoryBusy)return head+info('Cargando directorio privado…')+"</div>";
+  if(!view)return head+info('Selecciona una unidad para consultar sus personas vinculadas.')+"</div>";
+  const owner=view.owner;
+  const ownerText=owner?h(owner.displayName)+" ("+h(owner.email)+")":'Sin propietario vinculado';
+  const list=filtered(view.contacts??[],['fullName','relationship','email','phone']);
+  const tableRows=list.map(c=>"<tr class='"+(c.inactiveAt?'live-void':'')+"'><td><strong>"+h(c.fullName)+"</strong></td><td>"+h(directoryRelationship[c.relationship]??c.relationship)+"</td><td>"+h(c.email??c.phone??'Sin datos de contacto')+"<small style='display:block'>"+h(directoryChannel[c.contactPreference]??'Sin canal')+"</small></td><td>"+(c.paymentResponsible?'Contacto para pagos':'No')+"</td><td>"+(c.inactiveAt?'Inactivo':'Activo')+"</td><td>"+(c.inactiveAt?'—':"<button type='button' class='secondary-button' data-person-edit='"+h(c.id)+"'>Editar</button><button type='button' class='secondary-button' data-person-deactivate='"+h(c.id)+"'>Dar de baja</button>")+"</td></tr>").join('');
+  const table=list.length?"<div class='live-table-wrap'><table class='live-table'><thead><tr><th>Nombre</th><th>Vínculo</th><th>Contacto</th><th>Pago</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>"+tableRows+"</tbody></table></div>":info('No hay personas vinculadas o ninguna coincide con la búsqueda.');
+  return head+"<p><strong>Propietario vinculado:</strong> "+ownerText+"</p><p>Las preferencias son referencias administrativas, NO consentimientos verificados para envíos.</p>"+table+"</div>";
+}
+function unitPersonFields(person=null){
+  const p=person??{};
+  const option=(id,label,current)=>"<option value='"+h(id)+"' "+(current===id?'selected':'')+">"+h(label)+"</option>";
+  const relationship=Object.entries(directoryRelationship).map(([k,v])=>option(k,v,p.relationship??'resident')).join('');
+  const preference=Object.entries(directoryChannel).map(([k,v])=>option(k,v,p.contactPreference??'none')).join('');
+  return "<p>Datos privados para administración. No se enviarán correos ni mensajes. Una preferencia NO constituye autorización verificada.</p>"+
+    "<label>Nombre completo<input name='fullName' maxlength='100' required value='"+h(p.fullName??'')+"'></label>"+
+    "<label>Relación con la unidad<select name='relationship'>"+relationship+"</select></label>"+
+    "<label>Correo opcional<input type='email' name='email' autocomplete='off' maxlength='254' value='"+h(p.email??'')+"'></label>"+
+    "<label>Teléfono internacional opcional<input name='phone' inputmode='tel' placeholder='+56912345678' maxlength='20' value='"+h(p.phone??'')+"'></label>"+
+    "<label>Contacto para gestiones de pago<select name='paymentResponsible'>"+option('false','No',String(p.paymentResponsible??false))+option('true','Sí',String(p.paymentResponsible??false))+"</select></label>"+
+    "<label>Canal de preferencia, sin envío<select name='contactPreference'>"+preference+"</select></label>";
+}
 function renderNotifications(data){
   if(data.role==='admin')return info('Los mensajes privados se almacenan en la bandeja del propietario asignado. Usa «Aviso privado por unidad» para crear uno. No se envían correos ni WhatsApp.');
   if(data.role!=='owner')return info('Esta bandeja solo está disponible para propietarios autorizados.');
