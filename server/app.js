@@ -172,6 +172,13 @@ export function createApp(store,options={}){
           }
           throw new Problem(405,'Método no permitido');
         }
+        const reminderMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/reminders\/(preview|prepare)$/.exec(pathname);
+        if(reminderMatch){
+          const [,communityId,operation]=reminderMatch;
+          if(operation==='preview'&&req.method==='GET')return send(res,200,store.previewDueReminders(user.id,communityId));
+          if(operation==='prepare'&&req.method==='POST')return send(res,201,store.prepareDueReminders(user.id,communityId));
+          throw new Problem(405,'Método no permitido');
+        }
         const reversalMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/(charges|payments)\/([a-zA-Z0-9-]{36})\/reverse$/.exec(pathname);
         if(reversalMatch){
           if(req.method!=='POST')throw new Problem(405,'Método no permitido');
