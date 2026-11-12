@@ -307,6 +307,17 @@ async function refresh(){
   }catch(e){if(revision===generation&&!(e instanceof ContextChanged)){state.data=null;state.members=[];state.accountData=null;state.error=e.message;}}
   finally{if(revision===generation){state.loading=false;render();}}
 }
+async function loadUnitAllocations(unitId=state.allocationsUnit??state.data?.units?.[0]?.id){
+  if(!state.data||!['admin','owner'].includes(state.data.role)||!unitId)return;
+  state.allocationsUnit=unitId;state.allocationData=null;state.allocationBusy=true;render();
+  const revision=generation,community=state.selected;
+  try{
+    const result=await request(base()+'/units/'+unitId+'/allocations');
+    if(revision!==generation||community!==state.selected||state.allocationsUnit!==unitId)return;
+    state.allocationData=result;state.error='';
+  }catch(e){if(e instanceof ContextChanged)return;if(revision===generation)state.error=e.message;}
+  finally{if(revision===generation&&unitId===state.allocationsUnit){state.allocationBusy=false;render();}}
+}
 async function loadUnitDirectory(unitId=state.directoryUnit??state.data?.units?.[0]?.id){
   if(!state.data||state.data.role!=='admin'||!unitId)return;
   state.directoryUnit=unitId;state.directory=null;state.directoryBusy=true;render();
@@ -411,6 +422,20 @@ async function submitCreate(form){
   }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}finally{state.busy=false;render();}
 }
 app.addEventListener('submit',async event=>{
+  if(event.target.id==='allocation-form'){
+    event.preventDefault();
+    if(!canWrite()||state.page!=='allocations'||!state.allocationsUnit)return;
+    const data=Object.fromEntries(new FormData(event.target)),unitId=state.allocationsUnit;
+    state.busy=true;state.error='';render();
+    try{
+      await request(base()+'/units/'+unitId+'/allocations','POST',
+        {chargeId:data.chargeId,paymentId:data.paymentId,amountMinor:amountMinor(data.amount)});
+      await loadUnitAllocations(unitId);
+      state.notice='Imputación administrativa registrada. El saldo total no cambia y no se confirmó ningún pago bancario.';
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}
+    return;
+  }
   if(event.target.id==='identity-form'){
     event.preventDefault();if(state.busy)return;
     const input=Object.fromEntries(new FormData(event.target)),flow=state.identityFlow;
@@ -487,7 +512,7 @@ app.addEventListener('click',async event=>{
   }
   if(state.loading||state.busy)return;
   const page=event.target.closest('[data-page]')?.dataset.page;
-  if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();if(page==='directory')void loadUnitDirectory();return;}
+  if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();if(page==='directory')void loadUnitDirectory();if(page==='allocations')void loadUnitAllocations();return;}
   const personEdit=event.target.closest('[data-person-edit]');
   if(personEdit&&canWrite()&&state.page==='directory'){
     state.personTarget=personEdit.dataset.personEdit;state.modal='person-edit';state.error='';render();
@@ -578,6 +603,9 @@ app.addEventListener('change',async event=>{
     catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
     finally{state.busy=false;render();}
     return;
+  }
+  if(event.target.id==='allocations-unit-select'){
+    state.query='';state.error='';await loadUnitAllocations(event.target.value);return;
   }
   if(event.target.id==='directory-unit-select'){
     state.query='';state.error='';state.personTarget=null;
