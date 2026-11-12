@@ -178,7 +178,7 @@ export class Store {
         community_id TEXT NOT NULL,
         unit_id TEXT NOT NULL,
         recipient_user_id TEXT NOT NULL REFERENCES users(id),
-        kind TEXT NOT NULL CHECK(kind IN ('charge_created','payment_recorded','unit_message')),
+        kind TEXT NOT NULL CHECK(kind IN ('charge_created','payment_recorded','charge_reversed','payment_reversed','unit_message')),
         title TEXT NOT NULL,
         body TEXT NOT NULL,
         source_id TEXT NOT NULL,
@@ -509,10 +509,16 @@ export class Store {
     reason=requireText(reason,'Motivo de reverso',500);
     if(reason.length<10)throw new Problem(400,'El motivo requiere 10 caracteres o más');
     const table=type==='charge'?'charges':'payments';
-    const exists=this.db.prepare(`SELECT id FROM ${table} WHERE id=? AND community_id=?`).get(entityId,communityId);
+    const exists=this.db.prepare(`SELECT id,unit_id unitId FROM ${table} WHERE id=? AND community_id=?`).get(entityId,communityId);
     if(!exists)throw new Problem(404,'Movimiento no disponible');
     const id=randomUUID();
-    try{this.writeAudited(userId,communityId,`${type}.reversed`,entityId,()=>this.db.prepare('INSERT INTO reversals VALUES (?,?,?,?,?,?,?)').run(id,communityId,type,entityId,userId,reason,dateNow()));}
+    try{this.writeAudited(userId,communityId,`${type}.reversed`,entityId,()=>{
+      this.db.prepare('INSERT INTO reversals VALUES (?,?,?,?,?,?,?)').run(id,communityId,type,entityId,userId,reason,dateNow());
+      this.queueUnitNotification(communityId,exists.unitId,type==='charge'?'charge_reversed':'payment_reversed',
+        type==='charge'?'Cuota anulada':'Registro de pago anulado',
+        'La administración anuló un movimiento de esta unidad. Revisa el estado de cuenta privado; no implica una transferencia bancaria.',
+        id);
+    });}
     catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Movimiento ya reversado');throw e;}
 
     return {id};
