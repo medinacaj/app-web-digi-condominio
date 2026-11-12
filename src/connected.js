@@ -140,6 +140,7 @@ function renderConsentSettings(data){
   }).join('');
   return `<section class="live-card" aria-label="Preferencias voluntarias de comunicaciones"><h2>Autorizaciones de comunicación</h2><p>Estas preferencias se guardan con tu sesión e historial de cambios. <strong>No verifican tu dirección de correo</strong> ni activan el envío. Los avisos internos del portal permanecen disponibles aunque rechaces correos.</p>${options}</section>`;
 }
+const paymentStatusLabels={informado:'Informado',en_revision:'En revisión',confirmado:'Confirmado por administración',rechazado:'Rechazado',reversado:'Reversado'};
 function renderPaymentReports(data){
   if(!['admin','owner'].includes(data.role))return info('No tienes permiso para ver reportes de pago.');
   const entries=filtered(state.paymentReports??[],['reference','concept','unit','status']);
@@ -150,7 +151,7 @@ function renderPaymentReports(data){
     const buttons={informado:[['review','Enviar a revisión']],en_revision:[['confirm','Registrar abono tras revisión'],['reject','Rechazar']],confirmado:[['reverse','Reversar abono']],rechazado:[],reversado:[]}[report.status]??[];
     return buttons.map(([kind,title])=>`<button class="secondary-button" type="button" data-report-decision="${h(report.id)}" data-report-action="${kind}">${h(title)}</button>`).join('')||'—';
   };
-  return note+`<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Referencia</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${entries.map(x=>`<tr><td>${h(x.unit)}</td><td>${h(x.reference)}</td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${h(x.status.replace('_',' '))}</td><td>${actions(x)}</td></tr>`).join('')}</tbody></table></div>`;
+  return note+`<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Referencia</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${entries.map(x=>`<tr><td>${h(x.unit)}</td><td>${h(x.reference)}</td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${h(paymentStatusLabels[x.status]??x.status)}</td><td>${actions(x)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function renderNotifications(data){
   if(data.role==='admin')return info('Los mensajes privados se almacenan en la bandeja del propietario asignado. Usa «Aviso privado por unidad» para crear uno. No se envían correos ni WhatsApp.');
