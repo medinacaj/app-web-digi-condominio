@@ -125,6 +125,15 @@ s.setMembership(id,community,'owner');s.close();'''
             page.get_by_text('Gastos comunes simulados').wait_for(timeout=9000)
             page.get_by_role('button',name='Previsualizar recordatorios').click()
             page.get_by_role('button',name='Guardar 1 aviso(s) internos').wait_for(timeout=9000)
+            # Capturas solo con cuotas sintéticas y sin datos bancarios reales.
+            reminders_output=os.getenv('DIGI_E2E_SCREENSHOT_DIR')
+            if reminders_output:
+                Path(reminders_output).mkdir(parents=True,exist_ok=True)
+                page.set_viewport_size({'width':1440,'height':900})
+                page.screenshot(path=str(Path(reminders_output)/'digi-recordatorios-desktop.png'),full_page=True)
+                page.set_viewport_size({'width':390,'height':844})
+                page.screenshot(path=str(Path(reminders_output)/'digi-recordatorios-mobile.png'),full_page=True)
+                page.set_viewport_size({'width':1440,'height':900})
             page.get_by_role('button',name='Guardar 1 aviso(s) internos').click()
             page.get_by_text('Se guardaron 1 avisos privados dentro del sistema').wait_for(timeout=9000)
             page.get_by_role('button',name='Notificaciones').click()
