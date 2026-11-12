@@ -190,6 +190,15 @@ s.setMembership(id,community,'owner');s.close();'''
             assert page.get_by_role('button',name='Añadir unidad').count()==0
             assert page.get_by_role('button',name='Directorio').count()==0
             assert page.get_by_text('Arrendataria actualizada').count()==0
+            page.get_by_role('button',name='Pagos informados').click()
+            page.get_by_role('button',name='Informar pago').click()
+            page.get_by_label('Referencia única').fill('REF-DEMO-BROWSER-001')
+            page.get_by_label('Concepto').fill('Abono informado sintético')
+            page.get_by_label('Importe en UM').fill('12.00')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Pago informado para revisión').wait_for(timeout=9000)
+            page.get_by_text('REF-DEMO-BROWSER-001').wait_for(timeout=9000)
+            page.get_by_text('informado',exact=True).wait_for(timeout=9000)
             page.get_by_role('button',name='Notificaciones').click()
             page.get_by_role('button',name='Autorizar futuros correos').first.wait_for(timeout=9000)
             assert page.get_by_role('button',name='Autorizar futuros correos').count()==2
