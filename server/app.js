@@ -138,6 +138,12 @@ export function createApp(store,options={}){
           if(req.method!=='POST')throw new Problem(405,'Método no permitido');
           return send(res,201,store.sendUnitMessage(user.id,unitNoticeMatch[1],unitNoticeMatch[2],await body(req)));
         }
+        const consentMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/communication-consent$/.exec(pathname);
+        if(consentMatch){
+          if(req.method==='GET')return send(res,200,store.communicationConsent(user.id,consentMatch[1]));
+          if(req.method==='PUT')return send(res,200,store.setCommunicationConsent(user.id,consentMatch[1],await body(req)));
+          throw new Problem(405,'Método no permitido');
+        }
         const readNoticeMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/notifications\/([a-zA-Z0-9-]{36})\/read$/.exec(pathname);
         if(readNoticeMatch){
           if(req.method!=='PATCH')throw new Problem(405,'Método no permitido');
