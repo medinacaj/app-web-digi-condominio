@@ -206,7 +206,7 @@ s.setMembership(id,community,'owner');s.close();'''
                 page.set_viewport_size({'width':390,'height':844})
                 page.screenshot(path=str(Path(payment_output)/'digi-pagos-reportados-mobile.png'),full_page=True)
                 page.set_viewport_size({'width':1440,'height':900})
-            page.get_by_text('informado',exact=True).wait_for(timeout=9000)
+            page.get_by_text('Informado',exact=True).wait_for(timeout=9000)
             page.get_by_role('button',name='Notificaciones').click()
             page.get_by_role('button',name='Autorizar futuros correos').first.wait_for(timeout=9000)
             assert page.get_by_role('button',name='Autorizar futuros correos').count()==2
