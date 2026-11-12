@@ -18,11 +18,12 @@ test('versiona una base existente sin eliminar unidades, cuotas ni incidencias',
   s.addIncident(admin,c,{title:'Prueba de persistencia',detail:'Sin pérdida de reportes',category:'other'});
   s.db.exec('DROP TABLE invitations; DROP TABLE password_reset_tokens; DROP TABLE password_reset_requests; DROP TABLE identity_audit_events; DROP TABLE account_subscriptions; DROP TABLE subscription_events; PRAGMA user_version=4');s.close();
   s=cleanup.track(new Store(file));
-  assert.equal(s.db.prepare('PRAGMA user_version').get().user_version,7);
+  assert.equal(s.db.prepare('PRAGMA user_version').get().user_version,8);
   assert.equal(s.overview(admin,c).units[0].balanceMinor,4000);
   assert.equal(s.incidentsFor(admin,c).length,1);
   assert.equal(s.db.prepare("SELECT COUNT(*) n FROM unit_notifications").get().n,0);
   assert.equal(s.db.prepare("SELECT COUNT(*) n FROM unit_people").get().n,0);
+  assert.equal(s.db.prepare("SELECT COUNT(*) n FROM charge_deadlines").get().n,0);
 });
 
 test('rehúsa abrir una base con esquema de una versión futura',t=>{
