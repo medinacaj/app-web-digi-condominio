@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store, Problem } from '../server/store.js';
+import { sqliteTempCleanup } from './helpers/sqlite-fixture.js';
 function fixture(){
   const s=new Store();
   const admin=s.createUser('admin@example.test','VeryStrongPassword#2026','Administración');
@@ -86,7 +87,7 @@ test('los registros sobreviven al cierre y reapertura de SQLite',async t=>{
   const {mkdtempSync,rmSync}=await import('node:fs');
   const {tmpdir}=await import('node:os');
   const {join}=await import('node:path');
-  const path=mkdtempSync(join(tmpdir(),'digi-test-'));t.after(()=>rmSync(path,{recursive:true,force:true}));
+  const path=mkdtempSync(join(tmpdir(),'digi-test-'));const cleanup=sqliteTempCleanup(t,path);
   const file=join(path,'condominio.sqlite');
   let s=new Store(file);
   const admin=s.createUser('persist@example.test','VeryStrongPassword#2026');
@@ -95,7 +96,7 @@ test('los registros sobreviven al cierre y reapertura de SQLite',async t=>{
   const unit=s.addUnit(admin,community,{code:'T-101',kind:'Casa'}).id;
   s.addCharge(admin,community,{unitId:unit,period:'2026-10',concept:'Común',amountMinor:12300});
   s.close();
-  s=new Store(file);t.after(()=>s.close());
+  s=cleanup.track(new Store(file));
   const login=s.authenticate('persist@example.test','VeryStrongPassword#2026');
   assert.ok(login);
   const data=s.overview(login.user.id,community);
