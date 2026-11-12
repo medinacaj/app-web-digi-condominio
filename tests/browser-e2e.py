@@ -243,7 +243,7 @@ s.setMembership(id,community,'owner');s.close();'''
             page.get_by_label('Justificación de revisión').fill('Comprobación administrativa sintética de prueba')
             page.get_by_role('button',name='Guardar').click()
             page.get_by_text('Confirmado por administración',exact=True).wait_for(timeout=9000)
-            page.get_by_role('button',name='Pagos').click()
+            page.get_by_role('button',name='Pagos',exact=True).click()
             page.get_by_text('REF-DEMO-BROWSER-001').wait_for(timeout=9000)
             assert not errors,errors
             print(('DIRECT' if DIRECT else 'BRIDGE')+' WEB+API OK: login admin/owner, assign owner, incidents, status, XSS, responsive, 0 JS errors')
