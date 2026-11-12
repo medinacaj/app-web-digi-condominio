@@ -171,6 +171,9 @@ function modalHtml(){
   const type=state.modal;
   if(!type||state.loading||!state.data)return '';
   const config=type==='reverse' ? ['Anular movimiento',`<p>El registro original permanecerá visible y el saldo se recalculará. Esta acción no puede repetirse.</p><label>Motivo de anulación<textarea name="reason" maxlength="500" minlength="10" rows="4" required placeholder="Describe el error y su corrección"></textarea></label>`] : {
+    person:['Añadir contacto privado',unitPersonFields()],
+    'person-edit':['Editar contacto privado',unitPersonFields(state.directory?.contacts.find(c=>c.id===state.personTarget))],
+    'person-deactivate':['Dar de baja contacto',"<p>El contacto dejará de estar activo en esta unidad. El historial permanecerá visible solo para administración y no cambiará automáticamente los permisos del portal ni los saldos.</p><p><strong>Confirma la baja del contacto.</strong></p>"],
     unit:['Nueva unidad',`<label>Código<input name="code" maxlength="40" required placeholder="A-101"></label><label>Tipo<select name="kind"><option>Departamento</option><option>Casa</option><option>Local</option><option>Oficina</option></select></label><label>Ocupante (opcional)<input name="resident" maxlength="100"></label>`],
     charge:['Emitir cuota',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Gasto común"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label>`],
     payment:['Registrar pago manual',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Referencia única<input name="reference" maxlength="90" required placeholder="Transferencia-0001"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Abono de cuota"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label><p>No valida transferencias bancarias; registra solo el dato declarado por un administrador.</p>`],
@@ -219,6 +222,22 @@ async function refresh(){
   }catch(e){if(revision===generation&&!(e instanceof ContextChanged)){state.data=null;state.members=[];state.accountData=null;state.error=e.message;}}
   finally{if(revision===generation){state.loading=false;render();}}
 }
+async function loadUnitDirectory(unitId=state.directoryUnit??state.data?.units?.[0]?.id){
+  if(!state.data||state.data.role!=='admin'||!unitId)return;
+  state.directoryUnit=unitId;state.directory=null;state.directoryBusy=true;render();
+  const revision=generation,community=state.selected;
+  try{
+    const response=await request(base()+'/units/'+unitId+'/directory');
+    if(revision!==generation||community!==state.selected||unitId!==state.directoryUnit)return;
+    state.directory=response.directory;
+    state.error='';
+  }catch(e){
+    if(e instanceof ContextChanged)return;
+    if(revision===generation)state.error=e.message;
+  }finally{
+    if(revision===generation&&unitId===state.directoryUnit){state.directoryBusy=false;render();}
+  }
+}
 async function login(form){
   const credentials=Object.fromEntries(new FormData(form));
   state.busy=true;state.error='';render();
@@ -242,6 +261,26 @@ function amountMinor(value){
 async function submitCreate(form){
   const type=form.dataset.type;
   const data=Object.fromEntries(new FormData(form));
+  if(['person','person-edit','person-deactivate'].includes(type)){
+    if(!canWrite()||!state.directoryUnit)return;
+    const unitId=state.directoryUnit,contactId=state.personTarget;
+    state.busy=true;state.error='';render();
+    try{
+      const url=base()+'/units/'+unitId+'/directory';
+      if(type==='person-deactivate')await request(url+'/'+contactId,'DELETE');
+      else{
+        const payload={fullName:data.fullName,relationship:data.relationship,email:data.email,
+          phone:data.phone,paymentResponsible:data.paymentResponsible==='true',contactPreference:data.contactPreference};
+        await request(type==='person-edit'?url+'/'+contactId:url,type==='person-edit'?'PATCH':'POST',payload);
+      }
+      state.modal=null;state.personTarget=null;
+      await loadUnitDirectory(unitId);
+      state.notice=type==='person-deactivate'?'Contacto desactivado, sin modificar permisos del portal.':'Contacto privado guardado sin enviar notificaciones externas.';
+      render();
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}
+    finally{state.busy=false;render();}
+    return;
+  }
   const routes={incident:'incidents',unit:'units',charge:'charges',payment:'payments',announcement:'announcements',document:'documents',provider:'providers',expense:'expenses'};
   if(type==='unit-message'){
     if(!canWrite())return;
@@ -341,7 +380,16 @@ app.addEventListener('click',async event=>{
   }
   if(state.loading||state.busy)return;
   const page=event.target.closest('[data-page]')?.dataset.page;
-  if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();return;}
+  if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();if(page==='directory')void loadUnitDirectory();return;}
+  const personEdit=event.target.closest('[data-person-edit]');
+  if(personEdit&&canWrite()&&state.page==='directory'){
+    state.personTarget=personEdit.dataset.personEdit;state.modal='person-edit';state.error='';render();
+    document.querySelector('.live-modal input')?.focus();return;
+  }
+  const personDeactivate=event.target.closest('[data-person-deactivate]');
+  if(personDeactivate&&canWrite()&&state.page==='directory'){
+    state.personTarget=personDeactivate.dataset.personDeactivate;state.modal='person-deactivate';state.error='';render();return;
+  }
   const readNotice=event.target.closest('[data-notification-read]');
   if(readNotice){
     state.busy=true;state.error='';
@@ -386,6 +434,10 @@ app.addEventListener('change',async event=>{
     catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
     finally{state.busy=false;render();}
     return;
+  }
+  if(event.target.id==='directory-unit-select'){
+    state.query='';state.error='';state.personTarget=null;
+    await loadUnitDirectory(event.target.value);return;
   }
   if(event.target.id==='live-account'){
     const id=event.target.value;clearContext();state.accountId=id;state.selected=null;state.communities=[];await refresh();return;
