@@ -259,7 +259,7 @@ s.setMembership(id,community,'owner');s.close();'''
                 page.screenshot(path=str(Path(allocation_output)/'digi-imputaciones-desktop.png'),full_page=True)
                 page.set_viewport_size({'width':390,'height':844})
                 page.screenshot(path=str(Path(allocation_output)/'digi-imputaciones-mobile.png'),full_page=True)
-                page.set_viewport_size({'width':1440,'height':900')
+                page.set_viewport_size({'width':1440,'height':900})
             assert not errors,errors
             print(('DIRECT' if DIRECT else 'BRIDGE')+' WEB+API OK: login admin/owner, assign owner, incidents, status, XSS, responsive, 0 JS errors')
             browser.close()
