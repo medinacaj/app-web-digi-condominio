@@ -42,7 +42,7 @@ export class Store {
     this.db = new DatabaseSync(location);
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const dbVersion=this.db.prepare('PRAGMA user_version').get().user_version;
-    if(dbVersion>8){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
+    if(dbVersion>9){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
     const hasCommunities=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='communities'").get();
     if(hasCommunities && !this.db.prepare('PRAGMA table_info(communities)').all().some(c=>c.name==='account_id')) {
       this.db.close(); throw new Problem(409,'Migración de cuentas requerida: use migrate:accounts con mapeo explícito y respaldo');
@@ -196,6 +196,26 @@ export class Store {
         UNIQUE(community_id,recipient_user_id,kind,source_id)
       );
       CREATE INDEX IF NOT EXISTS ix_notifications_recipient ON unit_notifications(community_id,recipient_user_id,created_at);
+      CREATE TABLE IF NOT EXISTS communication_consent (
+        community_id TEXT NOT NULL REFERENCES communities(id),
+        user_id TEXT NOT NULL REFERENCES users(id),
+        purpose TEXT NOT NULL CHECK(purpose IN ('billing_updates','community_news')),
+        channel TEXT NOT NULL CHECK(channel='email'),
+        enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(community_id,user_id,purpose,channel)
+      );
+      CREATE TABLE IF NOT EXISTS communication_consent_events (
+        id TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL REFERENCES communities(id),
+        user_id TEXT NOT NULL REFERENCES users(id),
+        purpose TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+        occurred_at TEXT NOT NULL,
+        authentication TEXT NOT NULL CHECK(authentication='authenticated_self_service')
+      );
+      CREATE INDEX IF NOT EXISTS ix_consent_events_user ON communication_consent_events(community_id,user_id,occurred_at);
       CREATE TABLE IF NOT EXISTS unit_people (
         id TEXT PRIMARY KEY,
         community_id TEXT NOT NULL,
@@ -223,7 +243,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
-      this.db.exec('PRAGMA user_version=8');
+      this.db.exec('PRAGMA user_version=9');
       this.db.exec('COMMIT');
     }catch(error){this.db.exec('ROLLBACK');this.db.close();throw error;}
   }
@@ -591,6 +611,36 @@ export class Store {
       }
     });
     return {asOf:result.asOf,created,externalMessagesSent:0};
+  }
+  // Only an authenticated owner can express their own consent. Administrator
+  // entry of directory contact preferences is NOT consent and never used here.
+  communicationConsent(userId,communityId){
+    if(this.member(userId,communityId)!=='owner')throw new Problem(403,'Solo propietarios autorizados');
+    const entries=rows(this.db.prepare(`SELECT purpose,channel,enabled,updated_at updatedAt
+      FROM communication_consent WHERE community_id=? AND user_id=?
+      ORDER BY purpose,channel`),communityId,userId).map(x=>({...x,enabled:!!x.enabled}));
+    return {entries,verifiedChannel:false,externalDeliveryEnabled:false};
+  }
+  setCommunicationConsent(userId,communityId,data){
+    if(this.member(userId,communityId)!=='owner')throw new Problem(403,'Solo el titular puede gestionar sus preferencias');
+    if(!data||typeof data!=='object'||Array.isArray(data)||
+      Object.keys(data).sort().join(',')!=='channel,enabled,purpose')
+      throw new Problem(400,'Campos de consentimiento inválidos');
+    const {purpose,channel,enabled}=data;
+    if(!['billing_updates','community_news'].includes(purpose)||channel!=='email'||typeof enabled!=='boolean')
+      throw new Problem(400,'Finalidad, canal o autorización inválidos');
+    const now=dateNow(),eventId=randomUUID();
+    this.writeAudited(userId,communityId,'communication.consent_changed',eventId,()=>{
+      this.db.prepare(`INSERT INTO communication_consent (community_id,user_id,purpose,channel,enabled,updated_at)
+        VALUES(?,?,?,?,?,?) ON CONFLICT(community_id,user_id,purpose,channel)
+        DO UPDATE SET enabled=excluded.enabled,updated_at=excluded.updated_at`)
+        .run(communityId,userId,purpose,channel,Number(enabled),now);
+      this.db.prepare(`INSERT INTO communication_consent_events
+        (id,community_id,user_id,purpose,channel,enabled,occurred_at,authentication)
+        VALUES (?,?,?,?,?,?,?,'authenticated_self_service')`)
+        .run(eventId,communityId,userId,purpose,channel,Number(enabled),now);
+    });
+    return {purpose,channel,enabled,updatedAt:now,verifiedChannel:false,externalDeliveryEnabled:false};
   }
   notificationsFor(userId,communityId){
     const role=this.member(userId,communityId);

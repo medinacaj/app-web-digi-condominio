@@ -4,7 +4,7 @@ const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,m
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
 const icons={dashboard:'▦',units:'⌂',directory:'▤',charges:'≡',payments:'▤',announcements:'◉',notifications:'✉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
 const names={dashboard:'Resumen',units:'Unidades',directory:'Directorio',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',notifications:'Notificaciones',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,personTarget:null,directoryUnit:null,directory:null,directoryBusy:false,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null,reminderPreview:null};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,personTarget:null,directoryUnit:null,directory:null,directoryBusy:false,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null,reminderPreview:null,communicationConsent:null};
 function takeIdentityFragment(){
   const fragment=new URLSearchParams(location.hash.slice(1));
   for(const type of ['reset','invite'])if(fragment.has(type)){
@@ -17,7 +17,7 @@ takeIdentityFragment();
 let generation=0;
 class ContextChanged extends Error {}
 const isAccountAdmin=()=>state.accounts.find(a=>a.id===state.accountId)?.role==='account_admin';
-function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;state.personTarget=null;state.directory=null;state.directoryUnit=null;state.directoryBusy=false;state.reminderPreview=null;}
+function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;state.personTarget=null;state.directory=null;state.directoryUnit=null;state.directoryBusy=false;state.reminderPreview=null;state.communicationConsent=null;}
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
   const token=state.token,revision=generation;
@@ -128,12 +128,23 @@ function unitPersonFields(person=null){
     "<label>Contacto para gestiones de pago<select name='paymentResponsible'>"+option('false','No',String(p.paymentResponsible??false))+option('true','Sí',String(p.paymentResponsible??false))+"</select></label>"+
     "<label>Canal de preferencia, sin envío<select name='contactPreference'>"+preference+"</select></label>";
 }
+function renderConsentSettings(data){
+  if(data.role!=='owner')return '';
+  const entries=state.communicationConsent?.entries??[];
+  const labels={billing_updates:'Avisos de cuotas y pagos',community_news:'Comunicados de la comunidad'};
+  const options=Object.entries(labels).map(([purpose,title])=>{
+    const saved=entries.find(entry=>entry.purpose===purpose&&entry.channel==='email');
+    const enabled=Boolean(saved?.enabled);
+    return `<div class="live-consent-row"><div><strong>${h(title)}</strong><small style="display:block">Preferencia de correo no verificado; no se envían correos en el piloto.</small></div><button type="button" class="secondary-button" data-consent-purpose="${purpose}" data-consent-enabled="${enabled?'false':'true'}" aria-pressed="${enabled}">${enabled?'Retirar autorización':'Autorizar futuros correos'}</button></div>`;
+  }).join('');
+  return `<section class="live-card" aria-label="Preferencias voluntarias de comunicaciones"><h2>Autorizaciones de comunicación</h2><p>Estas preferencias se guardan con tu sesión e historial de cambios. <strong>No verifican tu dirección de correo</strong> ni activan el envío. Los avisos internos del portal permanecen disponibles aunque rechaces correos.</p>${options}</section>`;
+}
 function renderNotifications(data){
   if(data.role==='admin')return info('Los mensajes privados se almacenan en la bandeja del propietario asignado. Usa «Aviso privado por unidad» para crear uno. No se envían correos ni WhatsApp.');
   if(data.role!=='owner')return info('Esta bandeja solo está disponible para propietarios autorizados.');
   const list=filtered(data.notifications??[],['title','body','unit']);
-  if(!list.length)return info('No tienes notificaciones privadas para tus departamentos.');
-  return `<div class="live-notices">${list.map(x=>`<article class="live-notice"><div class="live-notice-symbol" aria-hidden="true">✉</div><div><h3>${h(x.title)}</h3><p>${h(x.body)}</p><small>Departamento ${h(x.unit)} · ${date(x.createdAt)} · ${x.readAt?'Leída':'No leída'}</small>${x.readAt?'':`<button type="button" class="secondary-button" data-notification-read="${h(x.id)}" aria-label="Marcar como leída: ${h(x.title)}">Marcar como leída</button>`}</div></article>`).join('')}</div>`;
+  if(!list.length)return renderConsentSettings(data)+info('No tienes notificaciones privadas para tus departamentos.');
+  return renderConsentSettings(data)+`<div class="live-notices">${list.map(x=>`<article class="live-notice"><div class="live-notice-symbol" aria-hidden="true">✉</div><div><h3>${h(x.title)}</h3><p>${h(x.body)}</p><small>Departamento ${h(x.unit)} · ${date(x.createdAt)} · ${x.readAt?'Leída':'No leída'}</small>${x.readAt?'':`<button type="button" class="secondary-button" data-notification-read="${h(x.id)}" aria-label="Marcar como leída: ${h(x.title)}">Marcar como leída</button>`}</div></article>`).join('')}</div>`;
 }
 function renderDocuments(data){
   const list=filtered(data.documents,['title','category','scope']);
@@ -217,7 +228,7 @@ function render(){
 }
 async function refresh(){
   if(!state.token)return;
-  state.reminderPreview=null;
+  state.reminderPreview=null;state.communicationConsent=null;
   const revision=++generation,accountId=state.accountId,communityId=state.selected;
   state.loading=true;state.data=null;state.members=[];state.accountData=null;render();
   try{
@@ -236,6 +247,7 @@ async function refresh(){
       const d=await request(`/api/communities/${state.selected}/overview`);
       const members=d.role==='admin'?(await request(`/api/communities/${state.selected}/members`)).members:[];
       state.data=d;state.members=members;
+      if(d.role==='owner')state.communicationConsent=await request(`/api/communities/${state.selected}/communication-consent`);
     }else if(isAccountAdmin())state.page='account';
     state.error='';
   }catch(e){if(revision===generation&&!(e instanceof ContextChanged)){state.data=null;state.members=[];state.accountData=null;state.error=e.message;}}
@@ -425,6 +437,19 @@ app.addEventListener('click',async event=>{
       const result=await request(base()+'/reminders/prepare','POST');
       await refresh();
       state.notice='Se guardaron '+result.created+' avisos privados dentro del sistema. No se enviaron correos, SMS ni WhatsApp.';
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}
+    return;
+  }
+  const consentButton=event.target.closest('[data-consent-purpose]');
+  if(consentButton&&state.data?.role==='owner'&&state.page==='notifications'){
+    state.busy=true;state.error='';render();
+    try{
+      await request(base()+'/communication-consent','PUT',{
+        purpose:consentButton.dataset.consentPurpose,channel:'email',enabled:consentButton.dataset.consentEnabled==='true'
+      });
+      state.communicationConsent=await request(base()+'/communication-consent');
+      state.notice='Preferencia registrada para tu cuenta. No se ha enviado ningún correo.';
     }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
     finally{state.busy=false;render();}
     return;
