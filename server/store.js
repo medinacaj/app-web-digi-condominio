@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
+import { strictUtcDay, addUtcDays, utcToday } from './due-calendar.js';
 
 export const roles = new Set(['admin', 'committee', 'owner']);
 const VALID = /^[a-z0-9-]{1,80}$/;
@@ -41,7 +42,7 @@ export class Store {
     this.db = new DatabaseSync(location);
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const dbVersion=this.db.prepare('PRAGMA user_version').get().user_version;
-    if(dbVersion>7){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
+    if(dbVersion>8){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
     const hasCommunities=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='communities'").get();
     if(hasCommunities && !this.db.prepare('PRAGMA table_info(communities)').all().some(c=>c.name==='account_id')) {
       this.db.close(); throw new Problem(409,'Migración de cuentas requerida: use migrate:accounts con mapeo explícito y respaldo');
@@ -84,6 +85,13 @@ export class Store {
         FOREIGN KEY(unit_id,community_id) REFERENCES units(id,community_id),
         UNIQUE(community_id,unit_id,period,concept)
       );
+      CREATE TABLE IF NOT EXISTS charge_deadlines (
+        charge_id TEXT PRIMARY KEY REFERENCES charges(id),
+        community_id TEXT NOT NULL REFERENCES communities(id),
+        due_on TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS ix_charge_deadlines_due ON charge_deadlines(community_id,due_on,charge_id);
       CREATE TABLE IF NOT EXISTS payments (
         id TEXT PRIMARY KEY, community_id TEXT NOT NULL REFERENCES communities(id),
         unit_id TEXT NOT NULL, reference TEXT NOT NULL, concept TEXT NOT NULL,
@@ -215,7 +223,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
-      this.db.exec('PRAGMA user_version=7');
+      this.db.exec('PRAGMA user_version=8');
       this.db.exec('COMMIT');
     }catch(error){this.db.exec('ROLLBACK');this.db.close();throw error;}
   }
@@ -388,6 +396,7 @@ export class Store {
     const units = rows(this.db.prepare(`SELECT u.id,u.code,u.kind,u.resident,${role === 'admin' ? 'u.owner_user_id' : 'NULL'} ownerUserId,
       ${balanceColumn} balanceMinor FROM units u WHERE u.community_id=?${visibility} ORDER BY u.code`), ...params);
     const charges = role === 'committee' ? [] : rows(this.db.prepare(`SELECT c.id,c.unit_id unitId,u.code unit,c.period,c.concept,c.amount_minor amountMinor,c.created_at createdAt,
+       (SELECT d.due_on FROM charge_deadlines d WHERE d.charge_id=c.id AND d.community_id=c.community_id) dueOn,
       EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id) reversed,
       ${role === 'admin' ? `(SELECT reason FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id)` : 'NULL'} reverseReason
       FROM charges c JOIN units u ON u.id=c.unit_id WHERE c.community_id=?${visibility} ORDER BY c.created_at DESC`), ...params);
@@ -520,10 +529,68 @@ export class Store {
     const unit=this.db.prepare('SELECT owner_user_id FROM units WHERE id=? AND community_id=?').get(unitId,communityId);
     if(!unit)throw new Problem(404,'Unidad no disponible');
     if(!unit.owner_user_id)return false; // No account to notify. Never guess recipients.
-    this.db.prepare(`INSERT OR IGNORE INTO unit_notifications
+    const result=this.db.prepare(`INSERT OR IGNORE INTO unit_notifications
       (id,community_id,unit_id,recipient_user_id,kind,title,body,source_id,created_at)
       VALUES(?,?,?,?,?,?,?,?,?)`).run(randomUUID(),communityId,unitId,unit.owner_user_id,kind,title,body,sourceId,dateNow());
-    return true;
+    return result.changes===1;
+  }
+  // Explicit one-click in-app reminder batch. Not a cron job, external message,
+  // bank confirmation, or allocation of a payment to a specific invoice.
+  dueReminderCandidates(userId,communityId,asOf=utcToday()){
+    this.requireAdmin(userId,communityId);
+    if(!strictUtcDay(asOf))throw new Problem(400,'Fecha UTC de consulta inválida');
+    const until=addUtcDays(asOf,5);
+    const sql=`SELECT u.id unitId,u.code unit,u.owner_user_id ownerUserId,
+      (SELECT MIN(d.due_on) FROM charge_deadlines d
+       JOIN charges c ON c.id=d.charge_id AND c.community_id=d.community_id
+       WHERE c.unit_id=u.id AND c.community_id=u.community_id AND d.due_on<=?
+       AND NOT EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id)
+      ) dueOn,
+      COALESCE((SELECT SUM(c.amount_minor) FROM charges c
+        WHERE c.unit_id=u.id AND c.community_id=u.community_id
+        AND NOT EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=c.community_id AND r.entity_type='charge' AND r.entity_id=c.id)),0)
+      - COALESCE((SELECT SUM(p.amount_minor) FROM payments p
+        WHERE p.unit_id=u.id AND p.community_id=u.community_id
+        AND NOT EXISTS(SELECT 1 FROM reversals r WHERE r.community_id=p.community_id AND r.entity_type='payment' AND r.entity_id=p.id)),0) balanceMinor
+      FROM units u
+      JOIN communities cmm ON cmm.id=u.community_id
+      JOIN memberships m ON m.community_id=u.community_id AND m.user_id=u.owner_user_id AND m.role='owner'
+      JOIN account_memberships am ON am.account_id=cmm.account_id AND am.user_id=u.owner_user_id
+      WHERE u.community_id=? ORDER BY u.code LIMIT 1001`;
+    const all=rows(this.db.prepare(sql),until,communityId);
+    if(all.length>1000)throw new Problem(409,'Demasiadas unidades: requiere procesamiento por lotes');
+    const exists=this.db.prepare(`SELECT 1 FROM unit_notifications WHERE community_id=? AND recipient_user_id=?
+      AND kind='unit_message' AND source_id=?`);
+    const eligible=all.filter(x=>x.dueOn&&x.balanceMinor>0).map(x=>{
+      const stage=x.dueOn<asOf?'overdue':'upcoming';
+      // One reminder per owner, deadline and phase, once monthly when overdue.
+      const sourceId='reminder:'+stage+':'+x.unitId+':'+x.dueOn+(stage==='overdue'?':'+asOf.slice(0,7):'');
+      const alreadyQueued=Boolean(exists.get(communityId,x.ownerUserId,sourceId));
+      return {unitId:x.unitId,unit:x.unit,dueOn:x.dueOn,stage,balanceMinor:x.balanceMinor,alreadyQueued,sourceId};
+    });
+    return {asOf,windowDays:5,eligible};
+  }
+  previewDueReminders(userId,communityId,asOf=utcToday()){
+    const result=this.dueReminderCandidates(userId,communityId,asOf);
+    return {asOf:result.asOf,windowDays:result.windowDays,
+      eligible:result.eligible.map(({sourceId,...item})=>item),
+      pending:result.eligible.filter(x=>!x.alreadyQueued).length};
+  }
+  prepareDueReminders(userId,communityId,asOf=utcToday()){
+    const result=this.dueReminderCandidates(userId,communityId,asOf);
+    const pending=result.eligible.filter(x=>!x.alreadyQueued);
+    if(!pending.length)return {asOf:result.asOf,created:0,externalMessagesSent:0};
+    let created=0;
+    this.writeAudited(userId,communityId,'reminder.inapp_batch',randomUUID(),()=>{
+      for(const x of pending){
+        const body=x.stage==='overdue'
+          ? 'Tu unidad presenta un saldo pendiente en los registros internos y una fecha de vencimiento ya transcurrió. Consulta tu estado de cuenta; los pagos pueden estar pendientes de revisión manual.'
+          : 'Tu unidad presenta un saldo pendiente en los registros internos y una fecha de vencimiento se aproxima. Consulta tu estado de cuenta; no es una confirmación bancaria.';
+        const title=x.stage==='overdue'?'Revisión de saldo y vencimiento':'Recordatorio próximo vencimiento';
+        if(this.queueUnitNotification(communityId,x.unitId,'unit_message',title,body,x.sourceId))created++;
+      }
+    });
+    return {asOf:result.asOf,created,externalMessagesSent:0};
   }
   notificationsFor(userId,communityId){
     const role=this.member(userId,communityId);
@@ -580,8 +647,15 @@ export class Store {
     this.requireAdmin(userId,communityId);
     const unitId=requireText(data.unitId,'Unidad',60),period=requirePeriod(data.period),concept=requireText(data.concept,'Concepto',100),amountMinor=requireMinor(data.amountMinor);
     if(!this.unitIsIn(communityId,unitId)) throw new Problem(404,'Unidad no disponible');
+    // Due dates are opt-in and explicit; historical charges without a date are NOT overdue.
+    const dueOn=data.dueOn==null?null:strictUtcDay(data.dueOn);
+    if(data.dueOn!=null&&!dueOn)throw new Problem(400,'Fecha de vencimiento inválida: use AAAA-MM-DD');
     const id=randomUUID();
-    try{this.writeAudited(userId,communityId,'charge.created',id,()=>{this.db.prepare('INSERT INTO charges VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,period,concept,amountMinor,dateNow());this.queueUnitNotification(communityId,unitId,'charge_created','Nueva cuota registrada','Hay una cuota registrada para tu departamento. Consulta tu estado de cuenta privado.',id);});}
+    try{this.writeAudited(userId,communityId,'charge.created',id,()=>{
+      this.db.prepare('INSERT INTO charges VALUES (?,?,?,?,?,?,?)').run(id,communityId,unitId,period,concept,amountMinor,dateNow());
+      if(dueOn)this.db.prepare('INSERT INTO charge_deadlines VALUES (?,?,?,?)').run(id,communityId,dueOn,dateNow());
+      this.queueUnitNotification(communityId,unitId,'charge_created','Nueva cuota registrada','Hay una cuota registrada para tu departamento. Consulta tu estado de cuenta privado.',id);
+    });}
     catch(e){if(String(e).includes('UNIQUE')) throw new Problem(409,'Cuota duplicada para período, unidad y concepto');throw e;}
 
     return {id};

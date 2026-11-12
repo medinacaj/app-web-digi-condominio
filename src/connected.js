@@ -4,7 +4,7 @@ const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,m
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
 const icons={dashboard:'▦',units:'⌂',directory:'▤',charges:'≡',payments:'▤',announcements:'◉',notifications:'✉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
 const names={dashboard:'Resumen',units:'Unidades',directory:'Directorio',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',notifications:'Notificaciones',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,personTarget:null,directoryUnit:null,directory:null,directoryBusy:false,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,personTarget:null,directoryUnit:null,directory:null,directoryBusy:false,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null,reminderPreview:null};
 function takeIdentityFragment(){
   const fragment=new URLSearchParams(location.hash.slice(1));
   for(const type of ['reset','invite'])if(fragment.has(type)){
@@ -17,7 +17,7 @@ takeIdentityFragment();
 let generation=0;
 class ContextChanged extends Error {}
 const isAccountAdmin=()=>state.accounts.find(a=>a.id===state.accountId)?.role==='account_admin';
-function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;state.personTarget=null;state.directory=null;state.directoryUnit=null;state.directoryBusy=false;}
+function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;state.personTarget=null;state.directory=null;state.directoryUnit=null;state.directoryBusy=false;state.reminderPreview=null;}
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
   const token=state.token,revision=generation;
@@ -62,11 +62,29 @@ function renderUnits(data,small=false){
   if(!list.length)return info('No hay unidades visibles.');
   return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Tipo</th><th>Ocupante</th>${data.role==='committee'? '':'<th>Saldo</th>'}${data.role==='admin'&&!small?'<th>Propietario</th>':''}</tr></thead><tbody>${list.map(x=>`<tr><td><strong>${h(x.code)}</strong></td><td>${h(x.kind)}</td><td>${h(x.resident||'Sin información')}</td>${data.role==='committee'?'':`<td class="money">${money(x.balanceMinor)}</td>`}${data.role==='admin'&&!small?`<td><span class="owner-display">${h(state.members.find(m=>m.id===x.ownerUserId)?.displayName??'Sin asignar')}</span><button class="owner-link" data-unit-owner="${h(x.id)}">Cambiar</button></td>`:''}</tr>`).join('')}</tbody></table></div>`;
 }
+function renderReminderControls(data){
+  if(data.role!=='admin')return '';
+  const preview=state.reminderPreview;
+  let html='<section class="live-card" aria-label="Recordatorios internos de cuotas"><h2>Recordatorios privados de vencimiento</h2>';
+  html+='<p>La administración revisa primero las unidades con saldo positivo y cuotas con fecha de vencimiento explícita. Se consideran cinco días próximos o vencimiento transcurrido. No se envía ningún mensaje externo ni se afirma pago bancario confirmado.</p>';
+  html+='<button type="button" class="secondary-button" data-reminder-preview="1">Previsualizar recordatorios</button>';
+  if(preview){
+    html+='<p><strong>'+preview.pending+' avisos pendientes de preparar</strong> de '+preview.eligible.length+' unidades elegibles (fecha UTC '+h(preview.asOf)+').</p>';
+    if(preview.eligible.length){
+      html+='<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Vence</th><th>Situación</th><th>Saldo administrativo</th><th>Aviso</th></tr></thead><tbody>';
+      html+=preview.eligible.map(x=>'<tr><td>'+h(x.unit)+'</td><td>'+h(x.dueOn)+'</td><td>'+(x.stage==='overdue'?'Fecha transcurrida':'Próximo vencimiento')+'</td><td class="money">'+money(x.balanceMinor)+'</td><td>'+(x.alreadyQueued?'Ya preparado':'Pendiente')+'</td></tr>').join('');
+      html+='</tbody></table></div>';
+    }else html+='<p>No hay recordatorios elegibles: puede faltar fecha de vencimiento, propietario vinculado o saldo pendiente.</p>';
+    if(preview.pending>0)html+='<button type="button" class="primary-button" data-reminder-prepare="1">Guardar '+preview.pending+' aviso(s) internos</button>';
+  }
+  html+='<p><small>Preparación manual y deduplicada por propietario y vencimiento. No programa envíos automáticos. Los pagos son registros administrativos sujetos a revisión.</small></p></section>';
+  return html;
+}
 function renderCharges(data){
   if(data.role==='committee')return info('La información financiera está restringida para este rol.');
   const list=filtered(data.charges,['unit','concept','period']);
-  if(!list.length)return info('No se han emitido cuotas.');
-  return `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Periodo</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${list.map(x=>`<tr class="${x.reversed?'live-void':''}"><td>${h(x.unit)}</td><td>${h(x.period)}</td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${x.reversed?`<span title="${h(x.reverseReason??'Anulado')}">Anulado</span>`:'Activo'}</td><td>${canWrite()&&!x.reversed?`<button class="live-reverse" data-reverse-type="charges" data-reverse-id="${h(x.id)}">Anular</button>`:'—'}</td></tr>`).join('')}</tbody></table></div>`;
+  if(!list.length)return renderReminderControls(data)+info('No se han emitido cuotas.');
+  return renderReminderControls(data)+`<div class="live-table-wrap"><table class="live-table"><thead><tr><th>Unidad</th><th>Periodo</th><th>Vencimiento</th><th>Concepto</th><th>Importe</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${list.map(x=>`<tr class="${x.reversed?'live-void':''}"><td>${h(x.unit)}</td><td>${h(x.period)}</td><td>${h(x.dueOn??'Sin fecha')}</td><td>${h(x.concept)}</td><td class="money">${money(x.amountMinor)}</td><td>${x.reversed?`<span title="${h(x.reverseReason??'Anulado')}">Anulado</span>`:'Activo'}</td><td>${canWrite()&&!x.reversed?`<button class="live-reverse" data-reverse-type="charges" data-reverse-id="${h(x.id)}">Anular</button>`:'—'}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function renderPayments(data){
   if(data.role==='committee')return info('La información financiera está restringida para este rol.');
@@ -175,7 +193,7 @@ function modalHtml(){
     'person-edit':['Editar contacto privado',unitPersonFields(state.directory?.contacts.find(c=>c.id===state.personTarget))],
     'person-deactivate':['Dar de baja contacto',"<p>El contacto dejará de estar activo en esta unidad. El historial permanecerá visible solo para administración y no cambiará automáticamente los permisos del portal ni los saldos.</p><p><strong>Confirma la baja del contacto.</strong></p>"],
     unit:['Nueva unidad',`<label>Código<input name="code" maxlength="40" required placeholder="A-101"></label><label>Tipo<select name="kind"><option>Departamento</option><option>Casa</option><option>Local</option><option>Oficina</option></select></label><label>Ocupante (opcional)<input name="resident" maxlength="100"></label>`],
-    charge:['Emitir cuota',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Gasto común"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label>`],
+    charge:['Emitir cuota',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Gasto común"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label><label>Vencimiento (opcional)<input name="dueOn" type="date"></label><p>Solo las cuotas con fecha de vencimiento explícita pueden generar recordatorios internos. No se enviará correo ni WhatsApp.</p>`],
     payment:['Registrar pago manual',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Referencia única<input name="reference" maxlength="90" required placeholder="Transferencia-0001"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Abono de cuota"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label><p>No valida transferencias bancarias; registra solo el dato declarado por un administrador.</p>`],
     'unit-message':['Aviso privado por departamento',`<p>Solo lo recibirá el propietario actualmente asignado a la unidad. No se envía por correo ni WhatsApp.</p><label>Departamento<select name="unitId" required>${(state.data?.units??[]).filter(x=>x.ownerUserId).map(x=>`<option value="${h(x.id)}">${h(x.code)}</option>`).join('')}</select></label><label>Título<input name="title" required maxlength="90"></label><label>Mensaje<textarea name="body" required maxlength="1000" rows="5"></textarea></label>`],
     announcement:['Nuevo comunicado',`<label>Título<input name="title" maxlength="90" required></label><label>Mensaje<textarea name="body" maxlength="2000" rows="5" required></textarea></label>`],
@@ -199,6 +217,7 @@ function render(){
 }
 async function refresh(){
   if(!state.token)return;
+  state.reminderPreview=null;
   const revision=++generation,accountId=state.accountId,communityId=state.selected;
   state.loading=true;state.data=null;state.members=[];state.accountData=null;render();
   try{
@@ -297,6 +316,7 @@ async function submitCreate(form){
   if(!routes[type])return;
   try{
     if(type==='charge'||type==='payment'||type==='expense'){data.amountMinor=amountMinor(data.amount);delete data.amount;}
+    if(type==='charge'&&!data.dueOn)delete data.dueOn;
     state.busy=true;state.error='';
     const submit=form.querySelector('button[type=submit]');if(submit)submit.disabled=true;
     await request(`${base()}/${routes[type]}`,'POST',data);
@@ -389,6 +409,25 @@ app.addEventListener('click',async event=>{
   const personDeactivate=event.target.closest('[data-person-deactivate]');
   if(personDeactivate&&canWrite()&&state.page==='directory'){
     state.personTarget=personDeactivate.dataset.personDeactivate;state.modal='person-deactivate';state.error='';render();return;
+  }
+  const previewReminders=event.target.closest('[data-reminder-preview]');
+  if(previewReminders&&canWrite()&&state.page==='charges'){
+    state.busy=true;state.error='';render();
+    try{state.reminderPreview=await request(base()+'/reminders/preview');}
+    catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}
+    return;
+  }
+  const prepareReminders=event.target.closest('[data-reminder-prepare]');
+  if(prepareReminders&&canWrite()&&state.page==='charges'&&state.reminderPreview?.pending>0){
+    state.busy=true;state.error='';render();
+    try{
+      const result=await request(base()+'/reminders/prepare','POST');
+      await refresh();
+      state.notice='Se guardaron '+result.created+' avisos privados dentro del sistema. No se enviaron correos, SMS ni WhatsApp.';
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
+    finally{state.busy=false;render();}
+    return;
   }
   const readNotice=event.target.closest('[data-notification-read]');
   if(readNotice){
