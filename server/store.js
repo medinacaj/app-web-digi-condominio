@@ -41,7 +41,7 @@ export class Store {
     this.db = new DatabaseSync(location);
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const dbVersion=this.db.prepare('PRAGMA user_version').get().user_version;
-    if(dbVersion>6){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
+    if(dbVersion>7){this.db.close();throw new Problem(409,'La base fue creada por una versión más reciente de Digi-Condominio');}
     const hasCommunities=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='communities'").get();
     if(hasCommunities && !this.db.prepare('PRAGMA table_info(communities)').all().some(c=>c.name==='account_id')) {
       this.db.close(); throw new Problem(409,'Migración de cuentas requerida: use migrate:accounts con mapeo explícito y respaldo');
@@ -188,6 +188,25 @@ export class Store {
         UNIQUE(community_id,recipient_user_id,kind,source_id)
       );
       CREATE INDEX IF NOT EXISTS ix_notifications_recipient ON unit_notifications(community_id,recipient_user_id,created_at);
+      CREATE TABLE IF NOT EXISTS unit_people (
+        id TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL,
+        unit_id TEXT NOT NULL,
+        full_name TEXT NOT NULL,
+        relationship TEXT NOT NULL CHECK(relationship IN ('resident','tenant','authorized','emergency')),
+        email TEXT,
+        phone TEXT,
+        payment_contact INTEGER NOT NULL DEFAULT 0 CHECK(payment_contact IN (0,1)),
+        contact_preference TEXT NOT NULL DEFAULT 'none' CHECK(contact_preference IN ('none','email','sms','whatsapp')),
+        created_by TEXT NOT NULL REFERENCES users(id),
+        updated_by TEXT NOT NULL REFERENCES users(id),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        inactive_at TEXT,
+        FOREIGN KEY(unit_id,community_id) REFERENCES units(id,community_id)
+      );
+      CREATE INDEX IF NOT EXISTS ix_unit_people_scope ON unit_people(community_id,unit_id,inactive_at);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_unit_people_active_email ON unit_people(community_id,unit_id,lower(email)) WHERE email IS NOT NULL AND inactive_at IS NULL;
       CREATE INDEX IF NOT EXISTS ix_units_community ON units(community_id);
       CREATE INDEX IF NOT EXISTS ix_charges_community ON charges(community_id,unit_id);
       CREATE INDEX IF NOT EXISTS ix_payments_community ON payments(community_id,unit_id);
@@ -196,7 +215,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS ix_reversals_community ON reversals(community_id,entity_type,entity_id);
       CREATE INDEX IF NOT EXISTS ix_providers_community ON providers(community_id);
     `);
-      this.db.exec('PRAGMA user_version=6');
+      this.db.exec('PRAGMA user_version=7');
       this.db.exec('COMMIT');
     }catch(error){this.db.exec('ROLLBACK');this.db.close();throw error;}
   }
@@ -413,6 +432,87 @@ export class Store {
       this.db.prepare('INSERT INTO unit_owner_events VALUES (?,?,?,?,?,?,?)').run(eventId,communityId,unitId,unit.owner_user_id,newOwner,userId,dateNow());
     });
     return {id:eventId};
+  }
+  // Unit occupants are private directory entries, NOT authenticated members.
+  // The currently linked legal/financial owner remains in units.owner_user_id.
+  validateUnitPerson(data,current=null){
+    if(!data||typeof data!=='object'||Array.isArray(data))throw new Problem(400,'Datos de persona inválidos');
+    const allowed=new Set(['fullName','relationship','email','phone','paymentResponsible','contactPreference']);
+    if(!Object.keys(data).length||Object.keys(data).some(key=>!allowed.has(key)))throw new Problem(400,'Campos de persona no permitidos');
+    const value={...current,...data};
+    const fullName=requireText(value.fullName,'Nombre de contacto',100);
+    if(!['resident','tenant','authorized','emergency'].includes(value.relationship))throw new Problem(400,'Relación con la unidad inválida');
+    const optional=(raw,label,max)=>{
+      if(raw===undefined||raw===null||raw==='')return null;
+      if(typeof raw!=='string'||raw.trim().length>max)throw new Problem(400,label+' inválido');
+      return raw.trim()||null;
+    };
+    const email=optional(value.email,'Correo',254)?.toLowerCase()??null;
+    if(email&&!emailFormat.test(email))throw new Problem(400,'Correo inválido');
+    const phone=optional(value.phone,'Teléfono',20);
+    if(phone&&!/^\\+[1-9][0-9]{7,14}$/.test(phone))throw new Problem(400,'Teléfono: use formato internacional + y 8 a 15 dígitos');
+    const paymentResponsible=value.paymentResponsible??false;
+    if(typeof paymentResponsible!=='boolean')throw new Problem(400,'Responsabilidad de pago inválida');
+    const contactPreference=value.contactPreference??'none';
+    if(!['none','email','sms','whatsapp'].includes(contactPreference))throw new Problem(400,'Preferencia de contacto inválida');
+    if(contactPreference==='email'&&!email)throw new Problem(400,'Correo requerido para preferencia email');
+    if(['sms','whatsapp'].includes(contactPreference)&&!phone)throw new Problem(400,'Teléfono requerido para canal preferido');
+    return {fullName,relationship:value.relationship,email,phone,paymentResponsible,contactPreference};
+  }
+  unitDirectory(userId,communityId,unitId){
+    this.requireAdmin(userId,communityId);
+    if(!this.unitIsIn(communityId,unitId))throw new Problem(404,'Unidad no disponible');
+    const owner=this.db.prepare(`SELECT u.id,u.display_name displayName,u.email FROM units x
+      JOIN users u ON u.id=x.owner_user_id WHERE x.community_id=? AND x.id=?`).get(communityId,unitId)??null;
+    const contacts=rows(this.db.prepare(`SELECT id,full_name fullName,relationship,email,phone,
+      payment_contact paymentResponsible,contact_preference contactPreference,
+      created_at createdAt,updated_at updatedAt,inactive_at inactiveAt
+      FROM unit_people WHERE community_id=? AND unit_id=?
+      ORDER BY inactive_at IS NOT NULL,created_at DESC,rowid DESC`),communityId,unitId)
+      .map(c=>({...c,paymentResponsible:!!c.paymentResponsible}));
+    return {unitId,owner,contacts};
+  }
+  addUnitPerson(userId,communityId,unitId,data){
+    this.requireAdmin(userId,communityId);
+    if(!this.unitIsIn(communityId,unitId))throw new Problem(404,'Unidad no disponible');
+    const v=this.validateUnitPerson(data),id=randomUUID(),now=dateNow();
+    try{this.writeAudited(userId,communityId,'unit.person_added',id,()=>{
+      this.db.prepare(`INSERT INTO unit_people
+      (id,community_id,unit_id,full_name,relationship,email,phone,payment_contact,contact_preference,created_by,updated_by,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id,communityId,unitId,v.fullName,v.relationship,v.email,v.phone,
+      Number(v.paymentResponsible),v.contactPreference,userId,userId,now,now);
+    });}catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Ya existe un contacto activo con ese correo en la unidad');throw e;}
+    return {id,active:true};
+  }
+  changeUnitPerson(userId,communityId,unitId,personId,data){
+    this.requireAdmin(userId,communityId);
+    if(!this.unitIsIn(communityId,unitId)||typeof personId!=='string'||!VALID.test(personId))throw new Problem(404,'Contacto no disponible');
+    const old=this.db.prepare(`SELECT id,full_name fullName,relationship,email,phone,
+      payment_contact paymentResponsible,contact_preference contactPreference,inactive_at inactiveAt
+      FROM unit_people WHERE id=? AND community_id=? AND unit_id=?`).get(personId,communityId,unitId);
+    if(!old)throw new Problem(404,'Contacto no disponible');
+    if(old.inactiveAt)throw new Problem(409,'Contacto inactivo; cree un nuevo registro si vuelve a residir');
+    const v=this.validateUnitPerson(data,{...old,paymentResponsible:!!old.paymentResponsible});
+    try{this.writeAudited(userId,communityId,'unit.person_updated',personId,()=>{
+      this.db.prepare(`UPDATE unit_people SET full_name=?,relationship=?,email=?,phone=?,
+        payment_contact=?,contact_preference=?,updated_by=?,updated_at=?
+        WHERE id=? AND community_id=? AND unit_id=? AND inactive_at IS NULL`)
+        .run(v.fullName,v.relationship,v.email,v.phone,Number(v.paymentResponsible),v.contactPreference,
+        userId,dateNow(),personId,communityId,unitId);
+    });}catch(e){if(String(e).includes('UNIQUE'))throw new Problem(409,'Ya existe un contacto activo con ese correo en la unidad');throw e;}
+    return {id:personId,active:true};
+  }
+  deactivateUnitPerson(userId,communityId,unitId,personId){
+    this.requireAdmin(userId,communityId);
+    if(!this.unitIsIn(communityId,unitId)||typeof personId!=='string'||!VALID.test(personId))throw new Problem(404,'Contacto no disponible');
+    const current=this.db.prepare('SELECT inactive_at FROM unit_people WHERE id=? AND community_id=? AND unit_id=?').get(personId,communityId,unitId);
+    if(!current)throw new Problem(404,'Contacto no disponible');
+    if(current.inactive_at)throw new Problem(409,'Contacto ya inactivo');
+    this.writeAudited(userId,communityId,'unit.person_deactivated',personId,()=>{
+      this.db.prepare('UPDATE unit_people SET inactive_at=?,updated_by=?,updated_at=? WHERE id=? AND community_id=? AND unit_id=?')
+        .run(dateNow(),userId,dateNow(),personId,communityId,unitId);
+    });
+    return {id:personId,active:false};
   }
   // In-app messages addressed only to the currently assigned owner.
   // No external delivery, bank confirmation, or use of the occupant free-text field.
