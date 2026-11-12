@@ -389,7 +389,7 @@ export class Store {
       FROM unit_owner_events e JOIN units u ON u.id=e.unit_id AND u.community_id=e.community_id
       LEFT JOIN users prior ON prior.id=e.old_owner_user_id LEFT JOIN users actual ON actual.id=e.new_owner_user_id
       WHERE e.community_id=? ORDER BY e.created_at DESC,e.rowid DESC LIMIT 50`),communityId) : [];
-    return { role, communityId, units, charges, payments, announcements, documents, providers, expenses, incidents, ownerChanges, audit };
+    return { role, communityId, units, charges, payments, announcements, notifications:this.notificationsFor(userId,communityId), documents, providers, expenses, incidents, ownerChanges, audit };
   }
   membersFor(userId,communityId){
     this.requireAdmin(userId,communityId);
@@ -459,7 +459,7 @@ export class Store {
     this.writeAudited(userId,communityId,'notification.unit_message',id,()=>{
       this.queueUnitNotification(communityId,unitId,'unit_message',title,body,id);
     });
-    return {id,deliveredInApp:true}; // Recorded locally; no proof of reading or external send.
+    return {id,recordedInApp:true}; // Stored for inbox; no external delivery or proof of reading.
   }
   unitIsIn(communityId, unitId) {
     return Boolean(this.db.prepare('SELECT id FROM units WHERE community_id=? AND id=?').get(communityId, unitId));
