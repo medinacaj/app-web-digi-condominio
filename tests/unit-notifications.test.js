@@ -76,6 +76,21 @@ test('al cambiar propietario se revocan avisos previos, sin entregarlos al nuevo
  assert.equal(x.s.notificationsFor(x.newOwner,x.a).length,0);
 });
 
+test('anular una cuota o pago genera corrección privada sin revelar motivo administrativo',t=>{
+ const x=setup(t);
+ const charge=x.s.addCharge(x.admin,x.a,{unitId:x.unit,period:'2026-11',concept:'Gasto común',amountMinor:20000});
+ const payment=x.s.addPayment(x.admin,x.a,{unitId:x.unit,reference:'FICTICIO-321',concept:'Abono',amountMinor:5000});
+ x.s.reverseEntry(x.admin,x.a,'charge',charge.id,'Cargo duplicado en prueba sintética');
+ x.s.reverseEntry(x.admin,x.a,'payment',payment.id,'Reverso solicitado en demo privada');
+ assert.deepEqual(new Set(x.s.notificationsFor(x.owner,x.a).map(x=>x.kind)),
+  new Set(['charge_created','payment_recorded','charge_reversed','payment_reversed']));
+ assert.ok(x.s.notificationsFor(x.owner,x.a).find(n=>n.kind==='payment_reversed').body.includes('anuló'));
+ assert.doesNotMatch(JSON.stringify(x.s.notificationsFor(x.owner,x.a)),/FICTICIO-321|Cargo duplicado|Reverso solicitado/);
+ assert.throws(()=>x.s.reverseEntry(x.admin,x.a,'payment',payment.id,'Otro reverso indebido'),
+  e=>e.status===409);
+ assert.equal(x.s.notificationsFor(x.owner,x.a).length,4);
+});
+
 test('auditoría fallida revierte también cuotas y avisos locales',t=>{
  const x=setup(t);
  const audit=x.s.audit;
