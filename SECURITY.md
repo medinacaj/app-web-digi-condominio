@@ -2,7 +2,8 @@
 
 Esta es una **política de trabajo**, no una afirmación de cumplimiento ni certificación.
 
-- Repositorio **privado**; no alterar visibilidad, despliegues ni otorgar acceso a terceros sin autorización.
+- Repositorio actualmente **público** para mantener la vista previa de GitHub Pages. No alterar visibilidad, dominios, publicación ni otorgar acceso a terceros sin autorización. **GitHub Pages y el código de frontend son públicos; los datos reales, credenciales y cualquier backend productivo deben mantenerse fuera de estos artefactos.**
+- La demo debe utilizar exclusivamente datos sintéticos. Si se decide separar código sensible en un repositorio privado, primero garantizar continuidad de la vista previa y aprobar el procedimiento.
 - No subir `.env` reales, llaves, tokens, certificados, datos bancarios ni PII de residentes a GitHub.
 - Usar datos sintéticos para pruebas y demostraciones. Mantener entornos separados.
 - Requerir autorización por tenant y unidad en servidor/base de datos, denegando acceso no autorizado por defecto.
