@@ -450,7 +450,7 @@ export class Store {
     const email=optional(value.email,'Correo',254)?.toLowerCase()??null;
     if(email&&!emailFormat.test(email))throw new Problem(400,'Correo inválido');
     const phone=optional(value.phone,'Teléfono',20);
-    if(phone&&!/^\\+[1-9][0-9]{7,14}$/.test(phone))throw new Problem(400,'Teléfono: use formato internacional + y 8 a 15 dígitos');
+    if(phone&&!/^\+[1-9][0-9]{7,14}$/.test(phone))throw new Problem(400,'Teléfono: use formato internacional + y 8 a 15 dígitos');
     const paymentResponsible=value.paymentResponsible??false;
     if(typeof paymentResponsible!=='boolean')throw new Problem(400,'Responsabilidad de pago inválida');
     const contactPreference=value.contactPreference??'none';
