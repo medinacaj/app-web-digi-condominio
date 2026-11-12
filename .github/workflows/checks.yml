@@ -50,11 +50,12 @@ jobs:
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: digicondominio-finanzas-privadas-preview
+          name: digicondominio-imputaciones-preview
           path: |
             artifacts/digi-directorio-*.png
             artifacts/digi-recordatorios-*.png
             artifacts/digi-pagos-reportados-*.png
+            artifacts/digi-imputaciones-*.png
           retention-days: 7
           if-no-files-found: error
 
