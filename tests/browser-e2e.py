@@ -191,6 +191,13 @@ s.setMembership(id,community,'owner');s.close();'''
             assert page.get_by_role('button',name='Directorio').count()==0
             assert page.get_by_text('Arrendataria actualizada').count()==0
             page.get_by_role('button',name='Notificaciones').click()
+            page.get_by_role('button',name='Autorizar futuros correos').first.wait_for(timeout=9000)
+            assert page.get_by_role('button',name='Autorizar futuros correos').count()==2
+            page.get_by_role('button',name='Autorizar futuros correos').first.click()
+            page.get_by_role('button',name='Retirar autorización').wait_for(timeout=9000)
+            page.get_by_text('Preferencia registrada para tu cuenta').wait_for(timeout=9000)
+            page.get_by_role('button',name='Retirar autorización').click()
+            assert page.get_by_role('button',name='Autorizar futuros correos').count()==2
             page.get_by_role('heading',name='Nueva cuota registrada').wait_for(timeout=9000)
             page.get_by_role('heading',name='Recordatorio próximo vencimiento').wait_for(timeout=9000)
             page.get_by_role('heading',name='Aviso único de la unidad').wait_for(timeout=9000)
