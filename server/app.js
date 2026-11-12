@@ -119,6 +119,20 @@ export function createApp(store,options={}){
           return send(res,200,store.changeCommunityMember(user.id,communityMember[1],communityMember[2],communityMember[3],data.role));
         }
         if(pathname==='/api/communities' && req.method==='GET')return send(res,200,{communities:store.communitiesFor(user.id)});
+        const directoryPersonMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/units\/([a-zA-Z0-9-]{36})\/directory\/([a-zA-Z0-9-]{36})$/.exec(pathname);
+        if(directoryPersonMatch){
+          const [,communityId,unitId,personId]=directoryPersonMatch;
+          if(req.method==='PATCH')return send(res,200,store.changeUnitPerson(user.id,communityId,unitId,personId,await body(req)));
+          if(req.method==='DELETE')return send(res,200,store.deactivateUnitPerson(user.id,communityId,unitId,personId));
+          throw new Problem(405,'Método no permitido');
+        }
+        const directoryMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/units\/([a-zA-Z0-9-]{36})\/directory$/.exec(pathname);
+        if(directoryMatch){
+          const [,communityId,unitId]=directoryMatch;
+          if(req.method==='GET')return send(res,200,{directory:store.unitDirectory(user.id,communityId,unitId)});
+          if(req.method==='POST')return send(res,201,store.addUnitPerson(user.id,communityId,unitId,await body(req)));
+          throw new Problem(405,'Método no permitido');
+        }
         const unitNoticeMatch=/^\/api\/communities\/([a-zA-Z0-9-]{36})\/units\/([a-zA-Z0-9-]{36})\/messages$/.exec(pathname);
         if(unitNoticeMatch){
           if(req.method!=='POST')throw new Problem(405,'Método no permitido');
