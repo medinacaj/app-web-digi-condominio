@@ -84,6 +84,36 @@ s.setMembership(id,community,'owner');s.close();'''
             page.locator('select[name=ownerUserId]').select_option(label='Propietario de prueba (owner@example.test)')
             page.get_by_role('button',name='Guardar').click()
             page.get_by_text('Propietario de prueba').first.wait_for(timeout=9000)
+            page.get_by_role('button',name='Directorio').click()
+            page.get_by_role('button',name='Añadir contacto').wait_for(timeout=9000)
+            page.get_by_role('button',name='Añadir contacto').click()
+            page.get_by_label('Nombre completo').fill('Arrendataria de demostración')
+            page.get_by_label('Relación con la unidad').select_option('tenant')
+            page.get_by_label('Correo opcional').fill('tenant@example.test')
+            page.get_by_label('Teléfono internacional opcional').fill('+56912345678')
+            page.get_by_label('Contacto para gestiones de pago').select_option('true')
+            page.get_by_label('Canal de preferencia, sin envío').select_option('email')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Arrendataria de demostración').wait_for(timeout=9000)
+            page.get_by_role('button',name='Editar').click()
+            page.get_by_label('Nombre completo').fill('Arrendataria actualizada')
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Arrendataria actualizada').wait_for(timeout=9000)
+            # Capturas solo de datos ficticios; nunca incluir registros personales reales.
+            output=os.getenv('DIGI_E2E_SCREENSHOT_DIR')
+            if output:
+                Path(output).mkdir(parents=True,exist_ok=True)
+                page.set_viewport_size({'width':1440,'height':900})
+                page.screenshot(path=str(Path(output)/'digi-directorio-desktop.png'),full_page=True)
+                page.set_viewport_size({'width':390,'height':844})
+                page.screenshot(path=str(Path(output)/'digi-directorio-mobile.png'),full_page=True)
+                page.set_viewport_size({'width':1440,'height':900})
+
+            page.get_by_role('button',name='Dar de baja').click()
+            page.get_by_role('button',name='Guardar').click()
+            page.get_by_text('Inactivo',exact=True).wait_for(timeout=9000)
+            assert page.get_by_role('button',name='Editar').count()==0
+
             # Issue #31: private unit communication and automatic charge notice.
             page.get_by_role('button',name='Cuotas').click()
             page.get_by_role('button',name='Emitir cuota').click()
@@ -143,6 +173,8 @@ s.setMembership(id,community,'owner');s.close();'''
             page.get_by_role('button',name='Unidades').click()
             page.get_by_text('A-101').wait_for(timeout=9000)
             assert page.get_by_role('button',name='Añadir unidad').count()==0
+            assert page.get_by_role('button',name='Directorio').count()==0
+            assert page.get_by_text('Arrendataria actualizada').count()==0
             page.get_by_role('button',name='Notificaciones').click()
             page.get_by_role('heading',name='Nueva cuota registrada').wait_for(timeout=9000)
             page.get_by_role('heading',name='Aviso único de la unidad').wait_for(timeout=9000)

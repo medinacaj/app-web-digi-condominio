@@ -40,11 +40,20 @@ jobs:
       - name: Comprobar app web contra backend HTTP real
         env:
           DIGI_E2E_MODE: direct
+          DIGI_E2E_SCREENSHOT_DIR: artifacts
         run: |
           python tests/browser-e2e.py
           python tests/local-launcher-browser.py
           python tests/accounts-browser.py
           python tests/online-browser.py
+      - name: Guardar vistas del directorio con datos sintéticos
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: digicondominio-directorio-preview
+          path: artifacts/digi-directorio-*.png
+          retention-days: 7
+          if-no-files-found: error
 
   windows-local:
     runs-on: windows-latest

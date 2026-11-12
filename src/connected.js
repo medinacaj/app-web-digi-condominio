@@ -2,9 +2,9 @@ import { escapeHtml as h } from './domain.js';
 const app=document.getElementById('app');
 const money=(n)=>`UM ${(n/100).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const date=(v)=>new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'});
-const icons={dashboard:'▦',units:'⌂',charges:'≡',payments:'▤',announcements:'◉',notifications:'✉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
-const names={dashboard:'Resumen',units:'Unidades',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',notifications:'Notificaciones',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
-const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null};
+const icons={dashboard:'▦',units:'⌂',directory:'▤',charges:'≡',payments:'▤',announcements:'◉',notifications:'✉',documents:'▣',audit:'◎',providers:'◇',expenses:'▥',incidents:'⚑',account:'⚙'};
+const names={dashboard:'Resumen',units:'Unidades',directory:'Directorio',charges:'Cuotas',payments:'Pagos',announcements:'Comunicados',notifications:'Notificaciones',documents:'Documentos',audit:'Auditoría',providers:'Proveedores',expenses:'Gastos',incidents:'Incidencias',account:'Gestión de cuenta'};
+const state={token:null,user:null,communities:[],selected:null,data:null,page:'dashboard',modal:null,busy:false,error:'',query:'',menuOpen:false,reverseTarget:null,incidentTarget:null,ownerTarget:null,personTarget:null,directoryUnit:null,directory:null,directoryBusy:false,members:[],accounts:[],accountId:null,accountData:null,loading:false,csrf:null,notice:"",identityFlow:null,identityLogin:false,subscription:null,quote:null};
 function takeIdentityFragment(){
   const fragment=new URLSearchParams(location.hash.slice(1));
   for(const type of ['reset','invite'])if(fragment.has(type)){
@@ -17,7 +17,7 @@ takeIdentityFragment();
 let generation=0;
 class ContextChanged extends Error {}
 const isAccountAdmin=()=>state.accounts.find(a=>a.id===state.accountId)?.role==='account_admin';
-function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;}
+function clearContext(){generation++;state.data=null;state.accountData=null;state.members=[];state.modal=null;state.query='';state.error='';state.notice='';state.subscription=null;state.quote=null;state.page='dashboard';state.menuOpen=false;state.reverseTarget=null;state.ownerTarget=null;state.incidentTarget=null;state.personTarget=null;state.directory=null;state.directoryUnit=null;state.directoryBusy=false;}
 const base=()=>`/api/communities/${state.selected}`;
 async function request(path,method='GET',data){
   const token=state.token,revision=generation;
@@ -46,7 +46,8 @@ const heading=()=>names[state.page];
 const actions=()=>{
   if(state.loading||state.busy||!state.data)return '';
   if(!canWrite() && state.page!=='incidents')return '';
-  const controls={units:['unit','Añadir unidad'],charges:['charge','Emitir cuota'],payments:['payment','Registrar pago'],announcements:['announcement','Nuevo comunicado'],notifications:['unit-message','Aviso privado por unidad'],documents:['document','Registrar documento'],providers:['provider','Nuevo proveedor'],expenses:['expense','Registrar gasto'],incidents:['incident','Reportar incidencia']};
+  const controls={directory:['person','Añadir contacto'],units:['unit','Añadir unidad'],charges:['charge','Emitir cuota'],payments:['payment','Registrar pago'],announcements:['announcement','Nuevo comunicado'],notifications:['unit-message','Aviso privado por unidad'],documents:['document','Registrar documento'],providers:['provider','Nuevo proveedor'],expenses:['expense','Registrar gasto'],incidents:['incident','Reportar incidencia']};
+  if(state.page==='directory'&&(!state.directoryUnit||state.directoryBusy))return '';
   const action=controls[state.page];return action?`<button class="primary-button" data-new="${action[0]}">+ ${action[1]}</button>`:'';
 };
 function totals(data){
@@ -77,6 +78,37 @@ function renderAnnouncements(data,small=false){
   const list=small?data.announcements.slice(0,4):filtered(data.announcements,['title','body']);
   if(!list.length)return info('No hay comunicados para esta comunidad.');
   return `<div class="live-notices">${list.map(x=>`<article class="live-notice"><div class="live-notice-symbol">◉</div><div><h3>${h(x.title)}</h3><p>${h(x.body)}</p><small>${date(x.createdAt)}</small></div></article>`).join('')}</div>`;
+}
+
+const directoryRelationship={resident:'Residente',tenant:'Arrendatario',authorized:'Persona autorizada',emergency:'Contacto de emergencia'};
+const directoryChannel={none:'Sin canal',email:'Correo (no verificado)',sms:'SMS (no verificado)',whatsapp:'WhatsApp (no verificado)'};
+function renderDirectory(data){
+  if(data.role!=='admin')return info('El directorio es privado y exclusivo de la administración.');
+  if(!data.units.length)return info('Registra un departamento antes de usar el directorio.');
+  const unit=state.directoryUnit??data.units[0].id,view=state.directory;
+  const options=data.units.map(u=>"<option value='"+h(u.id)+"' "+(u.id===unit?'selected':'')+">"+h(u.code)+"</option>").join('');
+  const head="<div class='live-card'><h2>Personas por departamento</h2><p>El propietario con acceso al portal se administra en «Unidades». Los demás contactos NO tienen acceso a finanzas ni reciben mensajes externos automáticamente.</p><label for='directory-unit-select'>Departamento</label><select id='directory-unit-select' class='live-community-select' aria-label='Departamento del directorio'>"+options+"</select>";
+  if(state.directoryBusy)return head+info('Cargando directorio privado…')+"</div>";
+  if(!view)return head+info('Selecciona una unidad para consultar sus personas vinculadas.')+"</div>";
+  const owner=view.owner;
+  const ownerText=owner?h(owner.displayName)+" ("+h(owner.email)+")":'Sin propietario vinculado';
+  const list=filtered(view.contacts??[],['fullName','relationship','email','phone']);
+  const tableRows=list.map(c=>"<tr class='"+(c.inactiveAt?'live-void':'')+"'><td><strong>"+h(c.fullName)+"</strong></td><td>"+h(directoryRelationship[c.relationship]??c.relationship)+"</td><td>"+h(c.email??c.phone??'Sin datos de contacto')+"<small style='display:block'>"+h(directoryChannel[c.contactPreference]??'Sin canal')+"</small></td><td>"+(c.paymentResponsible?'Contacto para pagos':'No')+"</td><td>"+(c.inactiveAt?'Inactivo':'Activo')+"</td><td>"+(c.inactiveAt?'—':"<button type='button' class='secondary-button' data-person-edit='"+h(c.id)+"'>Editar</button><button type='button' class='secondary-button' data-person-deactivate='"+h(c.id)+"'>Dar de baja</button>")+"</td></tr>").join('');
+  const table=list.length?"<div class='live-table-wrap'><table class='live-table'><thead><tr><th>Nombre</th><th>Vínculo</th><th>Contacto</th><th>Pago</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>"+tableRows+"</tbody></table></div>":info('No hay personas vinculadas o ninguna coincide con la búsqueda.');
+  return head+"<p><strong>Propietario vinculado:</strong> "+ownerText+"</p><p>Las preferencias son referencias administrativas, NO consentimientos verificados para envíos.</p>"+table+"</div>";
+}
+function unitPersonFields(person=null){
+  const p=person??{};
+  const option=(id,label,current)=>"<option value='"+h(id)+"' "+(current===id?'selected':'')+">"+h(label)+"</option>";
+  const relationship=Object.entries(directoryRelationship).map(([k,v])=>option(k,v,p.relationship??'resident')).join('');
+  const preference=Object.entries(directoryChannel).map(([k,v])=>option(k,v,p.contactPreference??'none')).join('');
+  return "<p>Datos privados para administración. No se enviarán correos ni mensajes. Una preferencia NO constituye autorización verificada.</p>"+
+    "<label>Nombre completo<input name='fullName' maxlength='100' required value='"+h(p.fullName??'')+"'></label>"+
+    "<label>Relación con la unidad<select name='relationship'>"+relationship+"</select></label>"+
+    "<label>Correo opcional<input type='email' name='email' autocomplete='off' maxlength='254' value='"+h(p.email??'')+"'></label>"+
+    "<label>Teléfono internacional opcional<input name='phone' inputmode='tel' placeholder='+56912345678' maxlength='20' value='"+h(p.phone??'')+"'></label>"+
+    "<label>Contacto para gestiones de pago<select name='paymentResponsible'>"+option('false','No',String(p.paymentResponsible??false))+option('true','Sí',String(p.paymentResponsible??false))+"</select></label>"+
+    "<label>Canal de preferencia, sin envío<select name='contactPreference'>"+preference+"</select></label>";
 }
 function renderNotifications(data){
   if(data.role==='admin')return info('Los mensajes privados se almacenan en la bandeja del propietario asignado. Usa «Aviso privado por unidad» para crear uno. No se envían correos ni WhatsApp.');
@@ -130,7 +162,7 @@ function renderAccount(){
   <h3>Auditoría de cuenta</h3><div class="live-table-wrap"><table class="live-table"><thead><tr><th>Acción</th><th>Actor</th><th>Fecha</th></tr></thead><tbody>${d.audit.map(e=>`<tr><td>${h(e.action)}</td><td>${h(e.actorName??e.actorUserId??e.userId??'')}</td><td>${date(e.createdAt)}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
 function screenContent(data){
-  const content={dashboard:renderDashboard,units:renderUnits,charges:renderCharges,payments:renderPayments,announcements:renderAnnouncements,notifications:renderNotifications,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses,incidents:renderIncidents};
+  const content={dashboard:renderDashboard,units:renderUnits,directory:renderDirectory,charges:renderCharges,payments:renderPayments,announcements:renderAnnouncements,notifications:renderNotifications,documents:renderDocuments,audit:renderAudit,providers:renderProviders,expenses:renderExpenses,incidents:renderIncidents};
   return (content[state.page]??renderDashboard)(data);
 }
 function selectOptions(){return state.data.units.map(x=>`<option value="${h(x.id)}">${h(x.code)}</option>`).join('');}
@@ -139,6 +171,9 @@ function modalHtml(){
   const type=state.modal;
   if(!type||state.loading||!state.data)return '';
   const config=type==='reverse' ? ['Anular movimiento',`<p>El registro original permanecerá visible y el saldo se recalculará. Esta acción no puede repetirse.</p><label>Motivo de anulación<textarea name="reason" maxlength="500" minlength="10" rows="4" required placeholder="Describe el error y su corrección"></textarea></label>`] : {
+    person:['Añadir contacto privado',unitPersonFields()],
+    'person-edit':['Editar contacto privado',unitPersonFields(state.directory?.contacts.find(c=>c.id===state.personTarget))],
+    'person-deactivate':['Dar de baja contacto',"<p>El contacto dejará de estar activo en esta unidad. El historial permanecerá visible solo para administración y no cambiará automáticamente los permisos del portal ni los saldos.</p><p><strong>Confirma la baja del contacto.</strong></p>"],
     unit:['Nueva unidad',`<label>Código<input name="code" maxlength="40" required placeholder="A-101"></label><label>Tipo<select name="kind"><option>Departamento</option><option>Casa</option><option>Local</option><option>Oficina</option></select></label><label>Ocupante (opcional)<input name="resident" maxlength="100"></label>`],
     charge:['Emitir cuota',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Periodo<input name="period" type="month" required value="${new Date().toISOString().slice(0,7)}"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Gasto común"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label>`],
     payment:['Registrar pago manual',`<label>Unidad<select name="unitId" required>${selectOptions()}</select></label><label>Referencia única<input name="reference" maxlength="90" required placeholder="Transferencia-0001"></label><label>Concepto<input name="concept" maxlength="100" required placeholder="Abono de cuota"></label><label>Importe en UM<input name="amount" required inputmode="decimal" placeholder="125.00"></label><p>No valida transferencias bancarias; registra solo el dato declarado por un administrador.</p>`],
@@ -157,7 +192,7 @@ function modalHtml(){
 function render(){
   if(state.identityFlow&&!state.identityLogin)return viewIdentity();
   if(!state.token)return viewLogin();
-  const visible=Object.keys(names).filter(x=>x!=='account'||isAccountAdmin()).filter(x=>state.data||x==='account').filter(x=>state.data?.role!=='committee'||!['charges','payments','notifications'].includes(x)).filter(x=>state.data?.role==='admin'||!['audit','providers','expenses'].includes(x));
+  const visible=Object.keys(names).filter(x=>x!=='account'||isAccountAdmin()).filter(x=>state.data||x==='account').filter(x=>state.data?.role!=='committee'||!['charges','payments','notifications'].includes(x)).filter(x=>state.data?.role==='admin'||!['audit','providers','expenses','directory'].includes(x));
   const d=state.data;
   app.innerHTML=`<div class="app-shell live-app"><aside class="sidebar ${state.menuOpen?'sidebar--open':''}"><div class="brand"><div class="brand-mark">DC</div><div><strong>Digi<span>Condominio</span></strong><small>ADMINISTRACIÓN PRIVADA</small></div></div><p class="nav-label">MI COMUNIDAD</p><nav class="nav-list">${visible.map(p=>`<button data-page="${p}" class="nav-item ${p===state.page?'active':''}" ${p===state.page?'aria-current="page"':''}><span class="live-menu-icon">${icons[p]}</span><span>${names[p]}</span></button>`).join('')}</nav><div class="sidebar-spacer"></div><div class="sidebar-note"><strong>Sesión protegida</strong><p>Rol actual: ${h(d?.role??'')}. El acceso se limita en servidor según comunidad y unidad.</p><span>MVP EN DESARROLLO</span></div><button class="nav-item live-logout" data-logout="1">Salir de la sesión</button></aside>${state.menuOpen?'<button class="mobile-shade" data-close-menu="1" aria-label="Cerrar menú"></button>':''}<div class="main-area"><header class="topbar"><div class="topbar-left"><button data-menu="1" class="mobile-menu" aria-label="Abrir menú">☰</button><strong>${h(communityName())}</strong></div><div class="topbar-right"><span class="header-pill">${state.token==='cookie'?'Piloto privado · Acceso autenticado':'Entorno local · Acceso autenticado'}</span><span class="top-avatar">${h((state.user?.displayName??'DC').slice(0,2).toUpperCase())}</span></div></header><main class="content"><div class="intro-row"><div><div class="eyebrow">ESPACIO DE GESTIÓN</div><h1>${h(heading())}</h1><p>Información persistida localmente y filtrada según los permisos de tu cuenta.</p></div><div class="intro-actions"><select class="live-community-select" id="live-account" aria-label="Cuenta seleccionada" ${state.busy?'disabled':''}>${state.accounts.map(a=>`<option value="${h(a.id)}" ${a.id===state.accountId?'selected':''}>${h(a.name)}</option>`).join('')}</select><select class="live-community-select" id="live-community" aria-label="Comunidad seleccionada" ${state.busy||!state.communities.length?'disabled':''}>${state.communities.map(c=>`<option value="${h(c.id)}" ${c.id===state.selected?'selected':''}>${h(c.name)}</option>`).join('')}</select>${actions()}${canWrite() && ['units','charges','payments','providers','expenses'].includes(state.page)?`<button class="secondary-button" data-export="${state.page}">Exportar CSV</button>`:''}</div></div><div class="live-info">Etapa MVP local · Sin operaciones bancarias ni documentos adjuntos · No apto para producción</div>${state.error?`<p class="live-error" role="alert">${h(state.error)}</p>`:''}${state.notice?`<p class="live-info" role="status">${h(state.notice)}</p>`:''}${!['dashboard','account'].includes(state.page)?`<div class="live-filter"><input id="live-search" aria-label="Buscar" value="${h(state.query)}" placeholder="Buscar en ${h(heading().toLowerCase())}"></div>`:''}<div class="live-view">${state.loading?info('Cargando contexto…'):state.page==='account'?renderAccount():d?screenContent(d):info('No tienes condominios asignados en esta cuenta.')}</div><footer class="footer">Digi-Condominio · MVP privado de desarrollo · ${state.token==='cookie'?'Sesión segura en este navegador':'Sesión temporal en este navegador'}</footer></main></div>${modalHtml()}</div>`;
   if(state.query){const inp=document.getElementById('live-search');if(inp && document.activeElement!==inp)inp.setSelectionRange(state.query.length,state.query.length);}
@@ -187,6 +222,22 @@ async function refresh(){
   }catch(e){if(revision===generation&&!(e instanceof ContextChanged)){state.data=null;state.members=[];state.accountData=null;state.error=e.message;}}
   finally{if(revision===generation){state.loading=false;render();}}
 }
+async function loadUnitDirectory(unitId=state.directoryUnit??state.data?.units?.[0]?.id){
+  if(!state.data||state.data.role!=='admin'||!unitId)return;
+  state.directoryUnit=unitId;state.directory=null;state.directoryBusy=true;render();
+  const revision=generation,community=state.selected;
+  try{
+    const response=await request(base()+'/units/'+unitId+'/directory');
+    if(revision!==generation||community!==state.selected||unitId!==state.directoryUnit)return;
+    state.directory=response.directory;
+    state.error='';
+  }catch(e){
+    if(e instanceof ContextChanged)return;
+    if(revision===generation)state.error=e.message;
+  }finally{
+    if(revision===generation&&unitId===state.directoryUnit){state.directoryBusy=false;render();}
+  }
+}
 async function login(form){
   const credentials=Object.fromEntries(new FormData(form));
   state.busy=true;state.error='';render();
@@ -210,6 +261,26 @@ function amountMinor(value){
 async function submitCreate(form){
   const type=form.dataset.type;
   const data=Object.fromEntries(new FormData(form));
+  if(['person','person-edit','person-deactivate'].includes(type)){
+    if(!canWrite()||!state.directoryUnit)return;
+    const unitId=state.directoryUnit,contactId=state.personTarget;
+    state.busy=true;state.error='';render();
+    try{
+      const url=base()+'/units/'+unitId+'/directory';
+      if(type==='person-deactivate')await request(url+'/'+contactId,'DELETE');
+      else{
+        const payload={fullName:data.fullName,relationship:data.relationship,email:data.email,
+          phone:data.phone,paymentResponsible:data.paymentResponsible==='true',contactPreference:data.contactPreference};
+        await request(type==='person-edit'?url+'/'+contactId:url,type==='person-edit'?'PATCH':'POST',payload);
+      }
+      state.modal=null;state.personTarget=null;
+      await loadUnitDirectory(unitId);
+      state.notice=type==='person-deactivate'?'Contacto desactivado, sin modificar permisos del portal.':'Contacto privado guardado sin enviar notificaciones externas.';
+      render();
+    }catch(e){if(e instanceof ContextChanged)return;state.error=e.message;render();}
+    finally{state.busy=false;render();}
+    return;
+  }
   const routes={incident:'incidents',unit:'units',charge:'charges',payment:'payments',announcement:'announcements',document:'documents',provider:'providers',expense:'expenses'};
   if(type==='unit-message'){
     if(!canWrite())return;
@@ -309,7 +380,16 @@ app.addEventListener('click',async event=>{
   }
   if(state.loading||state.busy)return;
   const page=event.target.closest('[data-page]')?.dataset.page;
-  if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();return;}
+  if(page){state.page=page;state.error='';state.query='';state.menuOpen=false;render();if(page==='directory')void loadUnitDirectory();return;}
+  const personEdit=event.target.closest('[data-person-edit]');
+  if(personEdit&&canWrite()&&state.page==='directory'){
+    state.personTarget=personEdit.dataset.personEdit;state.modal='person-edit';state.error='';render();
+    document.querySelector('.live-modal input')?.focus();return;
+  }
+  const personDeactivate=event.target.closest('[data-person-deactivate]');
+  if(personDeactivate&&canWrite()&&state.page==='directory'){
+    state.personTarget=personDeactivate.dataset.personDeactivate;state.modal='person-deactivate';state.error='';render();return;
+  }
   const readNotice=event.target.closest('[data-notification-read]');
   if(readNotice){
     state.busy=true;state.error='';
@@ -354,6 +434,10 @@ app.addEventListener('change',async event=>{
     catch(e){if(e instanceof ContextChanged)return;state.error=e.message;}
     finally{state.busy=false;render();}
     return;
+  }
+  if(event.target.id==='directory-unit-select'){
+    state.query='';state.error='';state.personTarget=null;
+    await loadUnitDirectory(event.target.value);return;
   }
   if(event.target.id==='live-account'){
     const id=event.target.value;clearContext();state.accountId=id;state.selected=null;state.communities=[];await refresh();return;
