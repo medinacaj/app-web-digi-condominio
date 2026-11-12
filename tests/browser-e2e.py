@@ -149,8 +149,9 @@ s.setMembership(id,community,'owner');s.close();'''
             assert page.get_by_text('Mensaje ficticio para este departamento.').count()==1
             assert page.get_by_role('button',name='Marcar como leída').count()==2
             page.get_by_role('button',name='Marcar como leída').first.click()
-            assert page.locator('.live-notice').filter(has_text='Leída').count()>=1
-            assert page.get_by_role('button',name='Marcar como leída').count()==1
+            page.wait_for_function("() => document.querySelectorAll('[data-notification-read]').length===1",timeout=9000)
+            assert any('Leída' in node.inner_text() and 'No leída' not in node.inner_text()
+                       for node in page.locator('.live-notice small').all())
             assert not errors,errors
             print(('DIRECT' if DIRECT else 'BRIDGE')+' WEB+API OK: login admin/owner, assign owner, incidents, status, XSS, responsive, 0 JS errors')
             browser.close()
