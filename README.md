@@ -1,8 +1,14 @@
 # Digi-Condominio
 
-**Versión integrada:** v0.7.0 (25 de octubre de 2026). Aplicación web y backend local de gestión de condominios, con código **privado** en [GitHub](https://github.com/medinacaj/app-web-digi-condominio).
+**Versión integrada:** v0.7.0 (25 de octubre de 2026). Aplicación web y backend local de gestión de condominios, con repositorio actualmente **público** para revisar avances en [GitHub](https://github.com/medinacaj/app-web-digi-condominio) y una demostración estática independiente en GitHub Pages.
 
-**IMPORTANTE:** MVP experimental local, **NO** publicado en Internet ni apto todavía para datos reales de residentes. La conformidad legal, arquitectura productiva y mercado inicial siguen pendientes.
+**IMPORTANTE:** la demostración estática utiliza datos ficticios. El **backend/MVP SaaS no está habilitado como servicio productivo ni es apto para datos reales** de residentes. La conformidad legal, arquitectura productiva y mercado inicial siguen pendientes.
+
+## Vista previa de avances
+
+- [Abrir demostración estática en GitHub Pages](https://medinacaj.github.io/app-web-digi-condominio/).
+- [Despliegue Pages #42809807459](https://github.com/medinacaj/app-web-digi-condominio/actions/runs/42809807459) completado correctamente y con URL registrada; la respuesta HTTP actual no está verificada desde esta revisión.
+- La rama `demo/github-pages` contiene frontend y datos sintéticos, sin backend ni pagos reales. No confundir la demo publicada con el piloto SaaS del PR #24.
 
 ## Funcionalidades implementadas en `main`
 
