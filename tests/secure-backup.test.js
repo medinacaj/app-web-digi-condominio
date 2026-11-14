@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync, openSync, closeSync, ftruncateSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../server/store.js';
@@ -42,4 +42,33 @@ test('no cifra datos que no son SQLite ni admite clave débil',async t=>{
   await assert.rejects(createEncryptedBackup(s,enc,'clave-corta'),/frase de cifrado/);
   assert.equal(existsSync(enc),false);
   assert.throws(()=>decryptSqlite(Buffer.from('texto de ejemplo'),'otra clave segura de prueba 2026'),/Formato de respaldo/);
+});
+
+test('rechaza un respaldo sobredimensionado antes de cargarlo en memoria',t=>{
+  const dir=mkdtempSync(join(tmpdir(),'digi-large-backup-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const oversized=join(dir,'oversized.dcb'),destination=join(dir,'restored.sqlite');
+  const fd=openSync(oversized,'w',0o600);
+  try{ftruncateSync(fd,100*1024*1024+50);}finally{closeSync(fd);}
+  assert.throws(
+    ()=>restoreEncryptedBackup(oversized,destination,'Frase de respaldo de prueba suficientemente larga'),
+    /superior al límite/
+  );
+  assert.equal(existsSync(destination),false);
+});
+
+test('publica respaldo completo sin sobrescribir ni dejar archivos temporales',async t=>{
+  const dir=mkdtempSync(join(tmpdir(),'digi-atomic-backup-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const s=new Store(join(dir,'source.sqlite'));t.after(()=>s.close());
+  const location=join(dir,'out','snapshot.dcb');
+  const pass='Contraseña para prueba de publicación atómica 2026';
+  const result=await createEncryptedBackup(s,location,pass);
+  assert.ok(result.bytes>49);
+  assert.equal(readFileSync(location).length,result.bytes);
+  assert.deepEqual(readdirSync(join(dir,'out')),['snapshot.dcb']);
+  const original=readFileSync(location);
+  await assert.rejects(createEncryptedBackup(s,location,pass),/ya existe/);
+  assert.deepEqual(readFileSync(location),original);
+  assert.deepEqual(readdirSync(join(dir,'out')),['snapshot.dcb']);
 });

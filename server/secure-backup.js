@@ -1,12 +1,34 @@
 /** Encrypted backups for small local SQLite datasets. Not a production backup service. */
 import { backup, DatabaseSync } from 'node:sqlite';
 import { randomBytes, scryptSync, createCipheriv, createDecipheriv } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync, linkSync, rmSync } from 'node:fs';
+import { openSync, closeSync, fstatSync, readSync, constants, writeFileSync, mkdirSync, mkdtempSync, existsSync, linkSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const HEADER=Buffer.from('DGCB1');
 const MAX_SIZE=100*1024*1024; // Explicit limit: this implementation buffers the file in memory.
+// Validate size on the opened file descriptor *before* allocating memory.
+// O_NOFOLLOW prevents following a symlink on supported filesystems. A file
+// growing during the read is rejected rather than read without a byte limit.
+function readBoundedFile(location,maxSize){
+  const fd=openSync(location,constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  try{
+    const info=fstatSync(fd);
+    if(!info.isFile()||!Number.isSafeInteger(info.size)||info.size>maxSize)
+      throw new Error('Archivo de respaldo/SQLite no válido o superior al límite de 100 MB');
+    const data=Buffer.alloc(info.size);
+    let offset=0;
+    while(offset<data.length){
+      const count=readSync(fd,data,offset,data.length-offset,offset);
+      if(count===0)throw new Error('El archivo cambió durante su lectura');
+      offset+=count;
+    }
+    const more=Buffer.alloc(1);
+    if(readSync(fd,more,0,1,offset)!==0)
+      throw new Error('El archivo cambió durante su lectura');
+    return data;
+  }finally{closeSync(fd);}
+}
 function key(passphrase,salt){
   if(typeof passphrase!=='string'||passphrase.length<20||passphrase.length>1024)
     throw new Error('La frase de cifrado debe tener de 20 a 1024 caracteres');
@@ -46,16 +68,23 @@ export async function createEncryptedBackup(store,destination,passphrase){
     const snapshot=join(work,'snapshot.sqlite');
     await backup(store.db,snapshot);
     integrity(snapshot);
-    const encrypted=encryptSqlite(readFileSync(snapshot),passphrase);
+    const encrypted=encryptSqlite(readBoundedFile(snapshot,MAX_SIZE),passphrase);
     mkdirSync(dirname(destination),{recursive:true,mode:0o700});
-    writeFileSync(destination,encrypted,{flag:'wx',mode:0o600});
-    return {bytes:encrypted.length};
+    // Publish only after the complete ciphertext has been written. The hard
+    // link is atomic and refuses to overwrite any pre-existing destination.
+    const stage=mkdtempSync(join(dirname(destination),'.digi-backup-'));
+    try{
+      const stagedFile=join(stage,'encrypted.dcb');
+      writeFileSync(stagedFile,encrypted,{flag:'wx',mode:0o600});
+      linkSync(stagedFile,destination);
+      return {bytes:encrypted.length};
+    }finally{rmSync(stage,{recursive:true,force:true});}
   }finally{rmSync(work,{recursive:true,force:true});}
 }
 export function restoreEncryptedBackup(source,destination,passphrase){
   source=resolve(source);destination=resolve(destination);
   if(source===destination||existsSync(destination))throw new Error('La base de datos de destino ya existe o coincide con el respaldo');
-  const data=decryptSqlite(readFileSync(source),passphrase);
+  const data=decryptSqlite(readBoundedFile(source,MAX_SIZE+49),passphrase);
   mkdirSync(dirname(destination),{recursive:true,mode:0o700});
   // Work beside the destination so the final hard link cannot overwrite an existing database.
   const work=mkdtempSync(join(dirname(destination),'.digi-restore-'));
