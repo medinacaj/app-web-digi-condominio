@@ -8,7 +8,7 @@
    - `DIGI_DB_PATH`: ruta de la base local (por defecto `.data/condominio.sqlite`).
    - `DIGI_BACKUP_PATH`: **nuevo** archivo terminado en `.dcb` en un directorio privado fuera del repositorio.
    - `DIGI_BACKUP_PASSPHRASE`: frase única y aleatoria de al menos **20 caracteres**. No pegarla en chats, scripts compartidos ni GitHub.
-2. Ejecute `npm run backup:secure`. El programa crea un snapshot consistente con `node:sqlite backup()`, comprueba `PRAGMA integrity_check`, cifra el contenido con AES-256-GCM y clave derivada por scrypt (`N=32768,r=8,p=1`). Incluye salt aleatorio de 16 bytes y nonce de 12 bytes por archivo; graba sin sobrescribir destinos existentes y con permisos `0600` en sistemas compatibles.
+2. Ejecute `npm run backup:secure`. El programa crea un snapshot consistente con `node:sqlite backup()`, comprueba `PRAGMA integrity_check`, cifra el contenido con AES-256-GCM y clave derivada por scrypt (`N=32768,r=8,p=1`). Incluye salt aleatorio de 16 bytes y nonce de 12 bytes por archivo; graba primero en un archivo temporal privado **en el mismo directorio del destino** y solo publica el archivo completo mediante un enlace duro que rechaza sobrescrituras, con permisos `0600` en sistemas compatibles.
 3. Conserve el archivo cifrado y la frase de cifrado en lugares independientes bajo su control. Sin ella la recuperación no será viable.
 
 ## Restaurar sin sobrescribir
@@ -19,7 +19,7 @@
 
 ## Límites explícitos
 
-- Se admite un máximo de **100 MB de SQLite**; por diseño se lee completo en RAM durante cifrado y descifrado. Esta implementación no escala a grandes bases sin cifrado en flujo.
+- Se admite un máximo de **100 MB de SQLite**; antes de cargar un snapshot o respaldo se comprueba el tamaño del archivo abierto. Los respaldos mayores al límite o archivos no regulares se rechazan, y los enlaces simbólicos de entrada se rechazan donde la plataforma admite `O_NOFOLLOW`. Por diseño los archivos válidos aún se leen completos en RAM durante cifrado y descifrado; esta implementación no escala a grandes bases sin cifrado en flujo.
 - Durante la operación se utiliza un archivo temporal SQLite legible por el proceso dentro de un directorio privado. La eliminación posterior **no garantiza borrado físico irrecuperable** en SSD, journaling ni snapshots del sistema.
 - El formato `.dcb` empieza por cabecera binaria `DGCB1` con salt, nonce, tag y ciphertext. No confundir con exportación de datos; no hay compresión.
 - No existen rotación, automatización, monitoreo, replicación, recuperación de puntos en el tiempo, custodia/rotación de claves ni métricas RPO/RTO. No se configura ninguna copia o acceso en la nube.
