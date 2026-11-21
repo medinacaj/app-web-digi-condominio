@@ -42,3 +42,18 @@ Respaldos cifrados: `npm run backup:secure`, `npm run restore:secure` después d
 **40 pruebas Node** y el trabajo E2E de navegador aprobados en GitHub Actions de `main` (run [40231797604](https://github.com/medinacaj/app-web-digi-condominio/actions/runs/40231797604)). Esto **no** equivale a certificación de seguridad, legalidad, disponibilidad o producción.
 
 Faltan validación de jurisdicción y datos, onboarding/MFA, archivos adjuntos privados, permisos normativos detallados, backend productivo estable, RPO/RTO, auditoría independiente, SEO y despliegue seguro. Repositorio `main` no tiene protección de rama nativa verificada: issue #8. No cambiar visibilidad ni otorgar acceso externo sin autorización.
+
+
+## Continuidad y estado verificable · 21/11/2026
+
+**Propósito:** Aplicación web para gestión de comunidades, unidades, cuotas e incidencias; backend transaccional local y demo sintética separada.
+
+**Límite de alcance:** El backend productivo no está desplegado; faltan controles legales, de seguridad y de operación.
+
+- **Código:** consultar la rama predeterminada y el historial de commits antes de afirmar una implementación reciente; el contenido anterior de este README conserva sus salvedades y evidencia histórica.
+- **Pruebas y CI:** consultar la ejecución de GitHub Actions asociada al SHA que se pretende entregar. Esta revisión documental no ejecuta pruebas de aplicación.
+- **Despliegue:** verificar directamente el entorno y la versión servida; ni un commit ni una demo ni CI satisfactoria acreditan por sí solos un despliegue productivo.
+- **Trabajo siguiente:** revisar los issues y PR abiertos, resolver el último bloqueo concreto y registrar cambio, rama, SHA, pruebas, entorno efectivamente comprobado y pendientes.
+- **Seguridad:** no introducir secretos, información personal ni datos reales en demos; conservar fixtures sintéticos y separar los entornos.
+
+**Fuente de verdad:** este repositorio y sus decisiones propias; no importar reglas de otro producto. Revisar la documentación técnica y operativa propia antes de implementar cambios. 
